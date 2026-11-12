@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>아이템 제작 가이드 — 원더 클래식 온라인</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+
+        <!-- Detecção e Redirecionamento Automático de Idioma (KO / DE / PT / Padrão EN) -->
+    <script>
+        (function() {
+            try {
+                var parts = window.location.pathname.split('/').filter(Boolean);
+                var cleanPath = parts.length ? parts[parts.length - 1] : 'index';
+                var m = cleanPath.match(/^(index|guia|craft|central|download|sobre)(?:-(en|de|ko))?(?:\.html)?$/i);
+                var base = m ? m[1].toLowerCase() : 'index';
+                if (base === 'download') base = 'central';
+                var currentLang = (m && m[2]) ? m[2].toLowerCase() : 'pt';
+
+                function goTo(targetLang) {
+                    if (!targetLang || targetLang === currentLang) return;
+                    try { localStorage.setItem('wk_lang', targetLang); } catch(e) {}
+                    var isClean = (window.location.protocol.indexOf('http') === 0) && (window.location.pathname.indexOf('.html') === -1);
+                    var targetFile;
+                    if (isClean) {
+                        targetFile = (targetLang === 'pt') ? (base === 'index' ? './' : base) : (base + '-' + targetLang);
+                    } else {
+                        targetFile = (targetLang === 'pt') ? (base + '.html') : (base + '-' + targetLang + '.html');
+                    }
+                    window.location.replace(targetFile);
+                }
+
+                // 1. Se o visitante acessou diretamente uma URL já localizada (-de, -ko, -en), fixa a preferência e não redireciona
+                if (currentLang !== 'pt') {
+                    try { localStorage.setItem('wk_lang', currentLang); } catch(e) {}
+                    return;
+                }
+
+                // 2. Se o visitante já tem preferência explícita salva (ex: clicou antes em EN, DE, KO ou PT)
+                var pref = null;
+                try { pref = localStorage.getItem('wk_lang'); } catch(e) {}
+                if (pref === 'pt' || pref === 'en' || pref === 'de' || pref === 'ko') {
+                    goTo(pref);
+                    return;
+                }
+
+                // 3. Detecção pelo idioma do navegador (navigator.languages)
+                var langs = navigator.languages || [navigator.language || navigator.userLanguage || ''];
+                var browserLang = null;
+                for (var i = 0; i < langs.length; i++) {
+                    var l = (langs[i] || '').toLowerCase();
+                    if (l.indexOf('ko') === 0) { browserLang = 'ko'; break; }
+                    if (l.indexOf('de') === 0) { browserLang = 'de'; break; }
+                    if (l.indexOf('pt') === 0) { browserLang = 'pt'; break; }
+                    if (l.indexOf('en') === 0) { browserLang = 'en'; break; }
+                }
+
+                // Se o navegador for coreano ou alemão, redireciona de imediato
+                if (browserLang === 'ko' || browserLang === 'de') {
+                    goTo(browserLang);
+                    return;
+                }
+
+                // 4. Detecção Geográfica por IP (Cloudflare /cdn-cgi/trace; sem ele, idioma do navegador)
+                var resolved = false;
+                function applyCountry(countryCode) {
+                    if (resolved) return;
+                    resolved = true;
+                    var c = (countryCode || '').toUpperCase();
+                    if (c === 'KR') {
+                        goTo('ko');
+                    } else if (c === 'DE' || c === 'AT' || c === 'CH') {
+                        goTo('de');
+                    } else if (c === 'BR' || c === 'PT') {
+                        goTo('pt');
+                    } else {
+                        // Qualquer outro país / na dúvida -> Padrão em Inglês
+                        goTo('en');
+                    }
+                }
+
+                // Tentativa 1: Cloudflare trace local (/cdn-cgi/trace)
+                fetch('/cdn-cgi/trace', { cache: 'no-store' })
+                    .then(function(res) { return res.text(); })
+                    .then(function(text) {
+                        var match = text.match(/loc=([A-Z]{2})/);
+                        if (match && match[1]) {
+                            applyCountry(match[1]);
+                        } else {
+                            fallbackGeo();
+                        }
+                    })
+                    .catch(function() {
+                        fallbackGeo();
+                    });
+
+                // Tentativa 2: idioma do navegador
+                function fallbackGeo() {
+                    // Sem serviço de GeoIP de terceiros (não manda o IP do visitante para fora): vale o idioma do navegador
+                    if (resolved) return;
+                    resolved = true;
+                    goTo(browserLang || 'en');
+                }
+            } catch(e) {}
+        })();
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Fredoka', 'Noto Sans KR', 'sans-serif'] } } } };
+    </script>
+
+    <style>
+        :root {
+            --wk-azul: #2f6fd6;
+            --wk-azul-esc: #1e3a8a;
+            --wk-amarelo: #fde047;
+            --wk-laranja: #f97316;
+        }
+        html { scroll-behavior: smooth; font-size: 17.5px; }
+        body {
+            background-color: #5ab1ee;
+            background-image: url('fundo.jpg');
+            background-size: cover;
+            background-attachment: fixed;
+            background-position: top center;
+        }
+        body::before {
+            content: ""; position: fixed; inset: 0; z-index: -1;
+            background: linear-gradient(180deg, rgba(20,40,90,0.25) 0%, rgba(20,40,90,0.55) 60%, rgba(10,20,50,0.8) 100%);
+        }
+
+        .panel-wk {
+            background-color: rgba(255, 255, 255, 0.95);
+            border: 4px solid var(--wk-amarelo);
+            border-radius: 1rem;
+            box-shadow: inset 0 0 15px rgba(255,255,255,0.9), 0 10px 30px rgba(0,0,0,0.45);
+        }
+        .header-bg { background: linear-gradient(180deg, #1e3a8a 0%, #3b82f6 100%); }
+
+        .btn-wk {
+            transition: transform .1s, filter .1s;
+            border-bottom-width: 5px;
+            border-color: rgba(0,0,0,0.25);
+            text-shadow: 1px 1px 0px rgba(0,0,0,0.4);
+        }
+        .btn-wk:hover { filter: brightness(1.08); }
+        .btn-wk:active { transform: translateY(5px); border-bottom-width: 0; margin-bottom: 5px; }
+
+        .tab-active { background-color: #3b82f6; color: #fff; border: 3px solid var(--wk-amarelo); border-bottom: none; }
+        .tab-inactive { background-color: rgba(255,255,255,0.7); color: #3b82f6; border: 3px solid transparent; border-bottom: 3px solid var(--wk-amarelo); }
+        .tab-inactive:hover { background-color: rgba(255,255,255,0.95); }
+
+        .link-nav { position: relative; }
+        .link-nav::after {
+            content: ""; position: absolute; left: 0; bottom: -6px; height: 3px; width: 0;
+            background: var(--wk-amarelo); border-radius: 3px; transition: width .2s;
+        }
+        .link-nav:hover::after { width: 100%; }
+    </style>
+</head>
+<body class="antialiased text-gray-800 min-h-screen pb-12">
+
+    <!-- Navbar -->
+    <header class="header-bg border-b-4 border-yellow-400 sticky top-0 z-50 shadow-xl">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center h-20">
+                <a href="index-ko.html" class="flex items-center gap-3">
+                    <img src="logo.png" alt="Wonder Classic" class="h-16 w-auto drop-shadow-md">
+                    <span class="hidden sm:block text-2xl font-bold text-yellow-300 drop-shadow">Wonder Classic</span>
+                </a>
+
+                <nav class="hidden md:flex gap-7 font-bold text-blue-50">
+                    <a href="index-ko.html" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-star"></i> 홈</a>
+                    <a href="index-ko.html#noticias" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-newspaper"></i> 소식</a>
+                    <a href="guia-ko.html" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-scroll"></i> 퀘스트 가이드</a>
+                    <a href="craft-ko.html" class="link-nav text-yellow-300 transition"><i class="fa-solid fa-hammer"></i> 아이템 제작</a>
+                    <a href="central-ko.html" class="link-nav hover:text-yellow-300 transition"><i class="fa-brands fa-discord"></i> 커뮤니티</a>
+                    <a href="sobre-ko.html" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-heart"></i> 프로젝트 소개</a>
+                    <a href="index-ko.html#ranking" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-trophy"></i> 랭킹</a>
+                </nav>
+
+                <div class="flex items-center gap-1 mr-1">
+                    <a href="craft.html" onclick="localStorage.setItem('wk_lang','pt')" class="px-2.5 py-1 rounded-lg font-bold text-sm bg-white/15 text-blue-50 hover:bg-white/30 transition">PT</a>
+                    <a href="craft-en.html" onclick="localStorage.setItem('wk_lang','en')" class="px-2.5 py-1 rounded-lg font-bold text-sm bg-white/15 text-blue-50 hover:bg-white/30 transition">EN</a>
+                    <a href="craft-de.html" onclick="localStorage.setItem('wk_lang','de')" class="px-2.5 py-1 rounded-lg font-bold text-sm bg-white/15 text-blue-50 hover:bg-white/30 transition">DE</a>
+                    <a href="craft-ko.html" onclick="localStorage.setItem('wk_lang','ko')" class="px-2.5 py-1 rounded-lg font-bold text-sm bg-yellow-400 text-blue-900 transition">KO</a>
+                </div>
+                <a href="https://discord.gg/dSzYmkKVE" target="_blank" rel="noopener noreferrer" class="px-5 py-2 bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold rounded-xl btn-wk flex items-center gap-2 shadow"><i class="fa-brands fa-discord"></i> <span class="hidden sm:inline">디스코드</span></a>
+            </div>
+        </div>
+    </header>
+
+    <section id="craft" class="container mx-auto px-4 mt-12">
+        <div class="panel-wk overflow-hidden">
+            <div class="h-40 flex items-end relative overflow-hidden border-b-4 border-yellow-400">
+                <img src="fundo.jpg" class="absolute inset-0 w-full h-full object-cover" alt="">
+                <div class="absolute inset-0 bg-gradient-to-t from-amber-900/95 via-amber-900/40 to-transparent"></div>
+                <h2 class="text-3xl font-bold text-white relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,1)] p-5">
+                    <i class="fa-solid fa-hammer text-yellow-300"></i> 아이템 제작 가이드 — 첫 무기와 방어구 만들기
+                </h2>
+            </div>
+
+            <div class="p-6 bg-white">
+                <p class="text-gray-700 mb-6">원더 클래식에서는 일반 상점에서 <b>판매하지 않는 귀중한 무기, 방어구 및 소모품</b>을 직접 <b>제작(Crafting)</b>할 수 있습니다. 제작 시스템은 <b class="text-amber-700">믹서(Mixer)</b>를 중심으로 이루어집니다. 본 가이드는 제작 해금 방법부터 4가지 믹서의 특징, 그리고 첫 번째 장비를 완성하는 단계까지 상세히 안내합니다.</p>
+
+                <!-- 1단계: 해금 -->
+                <h3 class="text-2xl font-bold text-blue-900 mb-3 flex items-center gap-2"><i class="fa-solid fa-unlock-keyhole text-green-500"></i> 1단계 — 제작 시스템 해금 (레벨 30)</h3>
+                <div class="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 mb-8 flex gap-4 items-start">
+                    <div class="shrink-0 w-12 h-12 rounded-full bg-amber-500 text-white text-2xl flex items-center justify-center shadow"><i class="fa-solid fa-flask"></i></div>
+                    <div class="text-sm text-gray-800">
+                        <b>레벨 30</b>에 도달하면 <b>프란시스(Francis)</b>의 NPC <b class="text-amber-800">T.R.Z.</b>를 찾아가 <b>"Principles of Item Crafting (아이템 제작의 원리)"</b> 퀘스트를 수행하세요. 퀘스트를 완료하면 <b>원하는 믹서 1종</b>을 보상으로 획득할 수 있습니다. 주의: <b class="text-red-600">오직 1종의 믹서만 선택</b>할 수 있으므로, 아래 믹서별 특징을 확인하고 신중하게 선택하세요.
+                    </div>
+                </div>
+
+                <!-- 4가지 믹서 -->
+                <h3 class="text-2xl font-bold text-blue-900 mb-4 flex items-center gap-2"><i class="fa-solid fa-layer-group text-purple-500"></i> 4가지 믹서 종류</h3>
+                <div class="grid md:grid-cols-2 gap-4 mb-4">
+                    <div class="rounded-xl border-2 border-sky-300 bg-sky-50 p-4">
+                        <p class="font-bold text-sky-900 text-lg"><i class="fa-solid fa-khanda text-sky-600"></i> 무기 믹서 (Weapon Mixer)</p>
+                        <p class="text-sm text-gray-700">검, 도끼, 단검, 활, 스태프 등 다양한 <b>무기</b>를 제작합니다.</p>
+                    </div>
+                    <div class="rounded-xl border-2 border-emerald-300 bg-emerald-50 p-4">
+                        <p class="font-bold text-emerald-900 text-lg"><i class="fa-solid fa-shield-halved text-emerald-600"></i> 방어구 믹서 (Armor Mixer)</p>
+                        <p class="text-sm text-gray-700">상의, 하의, 모자, 방패 등 캐릭터 <b>방어구</b>를 제작합니다.</p>
+                    </div>
+                    <div class="rounded-xl border-2 border-rose-300 bg-rose-50 p-4">
+                        <p class="font-bold text-rose-900 text-lg"><i class="fa-solid fa-hat-wizard text-rose-600"></i> 소모품 믹서 (Supple. Item Mixer)</p>
+                        <p class="text-sm text-gray-700">화살, 표창, 구슬 탄환 및 각종 <b>소모품과 장신구</b>를 제작합니다.</p>
+                    </div>
+                    <div class="rounded-xl border-2 border-amber-300 bg-amber-50 p-4">
+                        <p class="font-bold text-amber-900 text-lg"><i class="fa-solid fa-flask-vial text-amber-600"></i> 연금술 믹서 (Alchemy Mixer) <span class="text-xs bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full align-middle">초보자 추천</span></p>
+                        <p class="text-sm text-gray-700">원자재를 무기 및 방어구 제작에 필수적인 <b>중간 부품</b>(철괴, 부러진 칼날, 찢어진 상의 등)으로 변환합니다.</p>
+                    </div>
+                </div>
+                <div class="bg-blue-50 border-2 border-blue-200 rounded-xl p-3 text-sm text-gray-800 mb-8">
+                    <i class="fa-solid fa-lightbulb text-yellow-500"></i> <b>연금술이 핵심인 이유:</b> '부러진 칼날(Broken Blade)'이나 '찢어진 상의/하의/모자(Torn)' 부품은 <b>몬스터가 드롭하지도 않고 상점에서 판매하지도 않습니다</b>. 오직 연금술 믹서에서만 만들 수 있습니다. 모든 플레이어가 1개의 믹서만 선택할 수 있기 때문에, 보통 <b>친구들과 부품을 교환</b>하여 제작합니다(한 명이 연금술로 부품을 공급하고, 다른 친구가 무기를 조립). NPC T.R.Z.가 경고하듯 재료를 시장에서 사려면 <b>가격이 매우 비싸므로</b>, 직접 제작하는 것이 훨씬 경제적입니다!
+                </div>
+
+                <!-- 제작 구동 방식 -->
+                <h3 class="text-2xl font-bold text-blue-900 mb-4 flex items-center gap-2"><i class="fa-solid fa-gears text-blue-500"></i> 제작 구동 방식</h3>
+                <div class="grid md:grid-cols-2 gap-4 mb-8">
+                    <div class="bg-gray-50 rounded-xl p-4 border-2 border-gray-200 text-sm text-gray-700"><b class="text-blue-900"><i class="fa-solid fa-city text-blue-500"></i> 마을 안에서만 가능:</b> 필드 사냥터에서는 믹서 창을 열 수 없습니다.</div>
+                    <div class="bg-gray-50 rounded-xl p-4 border-2 border-gray-200 text-sm text-gray-700"><b class="text-blue-900"><i class="fa-solid fa-list-check text-green-500"></i> 3가지 필수 조건:</b> 올바른 믹서 + <b>레시피(Recipe)</b> + <b>재료</b> (그리고 소량의 <b>제드/Zed</b>).</div>
+                    <div class="bg-gray-50 rounded-xl p-4 border-2 border-gray-200 text-sm text-gray-700"><b class="text-blue-900"><i class="fa-solid fa-dice text-red-500"></i> 성공 확률:</b> 기본 레시피는 <b>100% 성공</b>합니다. 고급 레시피는 실패할 수 있으며, 실패 시 <b>재료가 소멸</b>합니다.</div>
+                    <div class="bg-gray-50 rounded-xl p-4 border-2 border-gray-200 text-sm text-gray-700"><b class="text-blue-900"><i class="fa-solid fa-star text-amber-500"></i> 숙련도(Mastery):</b> 아이템을 제작할 때마다 숙련도가 상승하며(최대 300,000), 완성품에 더 높은 <b>추가 보너스 스탯</b>이 부여됩니다. <b>장인의 영혼(Master Artisan Soul)</b>을 사용하면 획득량이 2배가 됩니다.</div>
+                    <div class="bg-gray-50 rounded-xl p-4 border-2 border-gray-200 text-sm text-gray-700 md:col-span-2"><b class="text-blue-900"><i class="fa-solid fa-chalkboard-user text-purple-500"></i> 레시피 습득:</b> 기초 레시피(초보/강철)는 믹서에 기본 포함되어 있습니다. 상위 레시피는 NPC에게서 제드로 <b>배울 수 있습니다</b> — 대표 NPC는 <b>T.R.Z.</b>(프란시스)와 <b>로코(Roco)</b>(헬렌)입니다.</div>
+                </div>
+
+                <!-- 첫 번째 무기 -->
+                <h3 class="text-2xl font-bold text-blue-900 mb-4 flex items-center gap-2"><i class="fa-solid fa-khanda text-sky-600"></i> 첫 번째 무기 제작 — 단계별 가이드</h3>
+                <div class="rounded-2xl border-2 border-sky-300 shadow-lg bg-white overflow-hidden mb-8">
+                    <div class="p-4 bg-gradient-to-r from-sky-600 to-sky-400 text-white">
+                        <p class="text-xl font-bold drop-shadow"><i class="fa-solid fa-khanda"></i> 초보자의 검 (Novice Sword) <span class="text-sm font-semibold">(10레벨 · 100% 성공 · 무기 믹서)</span></p>
+                        <p class="text-sm text-sky-100">레시피: <b class="bg-white/20 px-2 rounded">철(Iron) 1개</b> + <b class="bg-white/20 px-2 rounded">부러진 칼날(Broken Blade) 1개</b></p>
+                    </div>
+                    <ol class="p-4 space-y-3 text-sm">
+                        <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-sky-500 text-white font-bold flex items-center justify-center">1</span><div><b>철(Iron)</b> 획득: <b>광산 채광</b>(도저(Dozer)에게서 100 제드로 <b>곡괭이(Pickaxe)</b>를 구입한 뒤 광산에서 <b>B 키</b>를 길게 누름) 또는 프란시스 인근의 <b>'Fran Ore'</b> 광맥 채광.</div></li>
+                        <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-sky-500 text-white font-bold flex items-center justify-center">2</span><div><b>부러진 칼날(Broken Blade)</b> 획득: <b>연금술 믹서</b>에서 <b>철 5개 + 구리 5개</b>로 제작(한 번에 <b>10개</b> 생성). 연금술 믹서가 없다면 가진 친구와 거래하세요.</div></li>
+                        <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-sky-500 text-white font-bold flex items-center justify-center">3</span><div><b>마을</b> 안에서 <b>무기 믹서</b>를 열고, <b>Novice Sword</b>를 선택한 뒤 확인을 누르면 완성! 🎉</div></li>
+                    </ol>
+                    <div class="px-4 pb-4 text-xs text-gray-500">초반 직업별 무기: <b>Novice Axe</b> (철 1 + 부러진 칼날 1) · <b>Steel Dagger</b> (철 3 + 낡은 단검 4 + 장인의 영혼 1) · <b>Red Long Bow</b> (목재 3 + 낡은 활 4 + 장인의 영혼 1) · <b>Eagle Staff</b> (목재 3 + 부러진 지팡이 4 + 장인의 영혼 1).</div>
+                </div>
+
+                <!-- 첫 번째 방어구 -->
+                <h3 class="text-2xl font-bold text-blue-900 mb-4 flex items-center gap-2"><i class="fa-solid fa-shirt text-emerald-600"></i> 첫 번째 방어구 제작 — 단계별 가이드</h3>
+                <div class="rounded-2xl border-2 border-emerald-300 shadow-lg bg-white overflow-hidden mb-4">
+                    <div class="p-4 bg-gradient-to-r from-emerald-600 to-teal-400 text-white">
+                        <p class="text-xl font-bold drop-shadow"><i class="fa-solid fa-shirt"></i> 기본 방어구 세트 <span class="text-sm font-semibold">(8~10레벨 · 100% 성공 · 방어구 믹서)</span></p>
+                        <p class="text-sm text-emerald-50">슬롯별 세트: <b>상의(Shirt)</b>, <b>하의(Pants)</b>, <b>모자(Hat)</b> — 검사용 <b>방패(Shield)</b> 포함.</p>
+                    </div>
+                    <div class="p-4 text-sm space-y-3">
+                        <p><b class="text-emerald-800">직업별 필요 원자재:</b></p>
+                        <div class="grid md:grid-cols-2 gap-3">
+                            <div class="bg-sky-50 border border-sky-200 rounded-lg p-3"><b>검사(Swordsman) / 도적(Thief)</b> → <b class="text-amber-700">생가죽(Rawhide)</b> 사용</div>
+                            <div class="bg-purple-50 border border-purple-200 rounded-lg p-3"><b>스카우트(Scout) / 마법사(Mage)</b> → <b class="text-indigo-700">비단 원단(Silk Fabric)</b> 사용</div>
+                        </div>
+                        <p class="pt-1"><b class="text-emerald-800">예시 (검사 상의, lv10):</b> <b class="bg-emerald-100 px-2 rounded">생가죽 1개</b> + <b class="bg-emerald-100 px-2 rounded">찢어진 상의 1개</b> → 상의 완성.</p>
+                        <ol class="space-y-3">
+                            <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-emerald-500 text-white font-bold flex items-center justify-center">1</span><div>초반 몬스터를 사냥하여 직업에 맞는 <b>생가죽(Rawhide) 또는 비단 원단(Silk Fabric)</b>을 수집합니다 (하단 표 참고).</div></li>
+                            <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-emerald-500 text-white font-bold flex items-center justify-center">2</span><div><b>연금술 믹서</b>에서 <b>'찢어진' 부품</b>을 제작: <b>Torn Shirt / Torn Pants</b> = 생가죽 5개 + 실 5개 · <b>Torn Hat</b> = 비단 5개 + 실 5개 (한 번에 10개 제작).</div></li>
+                            <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-emerald-500 text-white font-bold flex items-center justify-center">3</span><div>마을 내 <b>방어구 믹서</b>에서 자신의 직업에 맞는 <b>상의, 하의, 모자</b>를 완성합니다.</div></li>
+                            <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-emerald-500 text-white font-bold flex items-center justify-center"><i class="fa-solid fa-shield-halved"></i></span><div>검사(Swordsman): <b>Swordsman's Shield (방패)</b>도 함께 제작 = <b>철 2개 + 목재 2개</b>.</div></li>
+                        </ol>
+                    </div>
+                </div>
+
+                <!-- 재료 채집 가이드 -->
+                <h3 class="text-2xl font-bold text-blue-900 mb-4 mt-8 flex items-center gap-2"><i class="fa-solid fa-map-location-dot text-red-500"></i> 재료 채집 및 획득 방법</h3>
+                <div class="overflow-x-auto mb-4">
+                    <table class="w-full text-sm border-collapse">
+                        <thead>
+                            <tr class="bg-blue-900 text-white">
+                                <th class="text-left p-2 rounded-tl-lg">재료명</th>
+                                <th class="text-left p-2 rounded-tr-lg">획득 방법 및 드롭 몬스터</th>
+                            </tr>
+                        </thead>
+                        <tbody class="[&>tr:nth-child(even)]:bg-blue-50">
+                            <tr><td class="p-2 font-bold">Iron (철)</td><td class="p-2"><i class="fa-solid fa-gem text-gray-500"></i> 채광 (곡괭이 장착 후 <b>B 키</b>) 및 프란시스 인근 <b>"Fran Ore"</b> 광맥.</td></tr>
+                            <tr><td class="p-2 font-bold">Copper (구리)</td><td class="p-2"><i class="fa-solid fa-gem text-orange-400"></i> 프란시스 인근 <b>"Fran Ore"</b> 광맥 및 초반 몬스터 드롭.</td></tr>
+                            <tr><td class="p-2 font-bold">Lumber (목재)</td><td class="p-2"><i class="fa-solid fa-tree text-green-600"></i> 필드 나무 상자 및 에버우드의 <b>벌목꾼(Lumberman)</b> 계열 몬스터, 듀공, 퓨마 킹.</td></tr>
+                            <tr><td class="p-2 font-bold">Rawhide (생가죽)</td><td class="p-2"><i class="fa-solid fa-paw text-amber-700"></i> 초반 몬스터: <b>데비엘, 다르켈, 개구리 킹, 듀공</b> 등.</td></tr>
+                            <tr><td class="p-2 font-bold">Silk Fabric (비단 원단)</td><td class="p-2"><i class="fa-solid fa-paw text-indigo-500"></i> 초반 몬스터: <b>당근 토끼, 춥스, 데비엘, 미친 여자</b> 등.</td></tr>
+                            <tr><td class="p-2 font-bold">Thread (실)</td><td class="p-2"><i class="fa-solid fa-paw text-pink-500"></i> <b>블루 하우셀, 망치 토끼, 핑크 윙, 미친 여자</b> 등.</td></tr>
+                            <tr><td class="p-2 font-bold">Pickaxe (곡괭이)</td><td class="p-2"><i class="fa-solid fa-coins text-yellow-500"></i> 광산 입구 NPC <b>도저(Dozer)</b>에게서 100 제드에 구매.</td></tr>
+                            <tr><td class="p-2 font-bold">Artisan Soul (장인의 영혼)</td><td class="p-2"><i class="fa-solid fa-ghost text-purple-500"></i> 33레벨 이상 몬스터 드롭 (~1%) — 18레벨 이상 제작 레시피에 필수.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-xs text-gray-500 mb-2"><i class="fa-solid fa-circle-info"></i> 레시피, 드롭 테이블, 상점 정보를 커뮤니티가 정리했습니다. 아이템 명칭은 게임 내 원문(영문)을 병기하였습니다.</p>
+
+                <!-- 핵심 팁 -->
+                <div class="bg-green-50 border-2 border-green-300 rounded-xl p-4 mt-6">
+                    <p class="font-bold text-green-900 mb-2"><i class="fa-solid fa-circle-check text-green-600"></i> 핵심 제작 팁</p>
+                    <ul class="text-sm text-gray-800 space-y-1 list-disc pl-5">
+                        <li><b>자급자족</b>을 원한다면? <b>연금술 믹서</b>를 선택하세요 — <b>모든</b> 무기와 방어구 제작에 필요한 핵심 중간 부품을 생산합니다.</li>
+                        <li>기초 레시피는 <b>100% 성공</b>(위험 없음)입니다. 고급 레시피를 제작할 때는 <b>Master Artisan Soul</b>을 지참하여 숙련도 2배 및 최상급 보너스 옵션을 노리세요.</li>
+                        <li>반드시 <b>마을 안</b>에서 제작을 진행하고, 제작하려는 부위에 맞는 <b>올바른 믹서</b>를 착용했는지 확인하세요.</li>
+                        <li>친구들과 역할을 분담하세요: 한 명은 연금술사(부품 생산), 다른 친구는 대장장이/재봉사(장비 조립)를 맡으면 훨씬 빠르고 효율적으로 장비를 맞출 수 있습니다!</li>
+                    </ul>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- 푸터 -->
+    <footer class="container mx-auto px-4 mt-12">
+        <div class="panel-wk p-6 text-center">
+            <img src="logo.png" alt="" class="mx-auto h-16 object-contain mb-3 opacity-90">
+            <p class="font-bold text-blue-900">Wonder Classic — 팬 커뮤니티 및 백과사전</p>
+            <p class="text-sm text-gray-600 mt-1">고전 2D MMORPG 팬들을 위한 비영리 기록 보존 프로젝트.</p>
+            <div class="flex justify-center gap-4 mt-4 text-2xl text-blue-600">
+                <a href="https://discord.gg/dSzYmkKVE" target="_blank" class="hover:text-blue-800 transition" title="Discord"><i class="fa-brands fa-discord"></i></a>
+                <a href="#" class="hover:text-blue-800 transition" title="YouTube"><i class="fa-brands fa-youtube"></i></a>
+                <a href="#" class="hover:text-blue-800 transition" title="GitHub"><i class="fa-brands fa-github"></i></a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

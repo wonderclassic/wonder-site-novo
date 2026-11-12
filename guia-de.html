@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quest-Guide — Wonder Classic Online</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+
+        <!-- Detecção e Redirecionamento Automático de Idioma (KO / DE / PT / Padrão EN) -->
+    <script>
+        (function() {
+            try {
+                var parts = window.location.pathname.split('/').filter(Boolean);
+                var cleanPath = parts.length ? parts[parts.length - 1] : 'index';
+                var m = cleanPath.match(/^(index|guia|craft|central|download|sobre)(?:-(en|de|ko))?(?:\.html)?$/i);
+                var base = m ? m[1].toLowerCase() : 'index';
+                if (base === 'download') base = 'central';
+                var currentLang = (m && m[2]) ? m[2].toLowerCase() : 'pt';
+
+                function goTo(targetLang) {
+                    if (!targetLang || targetLang === currentLang) return;
+                    try { localStorage.setItem('wk_lang', targetLang); } catch(e) {}
+                    var isClean = (window.location.protocol.indexOf('http') === 0) && (window.location.pathname.indexOf('.html') === -1);
+                    var targetFile;
+                    if (isClean) {
+                        targetFile = (targetLang === 'pt') ? (base === 'index' ? './' : base) : (base + '-' + targetLang);
+                    } else {
+                        targetFile = (targetLang === 'pt') ? (base + '.html') : (base + '-' + targetLang + '.html');
+                    }
+                    window.location.replace(targetFile);
+                }
+
+                // 1. Se o visitante acessou diretamente uma URL já localizada (-de, -ko, -en), fixa a preferência e não redireciona
+                if (currentLang !== 'pt') {
+                    try { localStorage.setItem('wk_lang', currentLang); } catch(e) {}
+                    return;
+                }
+
+                // 2. Se o visitante já tem preferência explícita salva (ex: clicou antes em EN, DE, KO ou PT)
+                var pref = null;
+                try { pref = localStorage.getItem('wk_lang'); } catch(e) {}
+                if (pref === 'pt' || pref === 'en' || pref === 'de' || pref === 'ko') {
+                    goTo(pref);
+                    return;
+                }
+
+                // 3. Detecção pelo idioma do navegador (navigator.languages)
+                var langs = navigator.languages || [navigator.language || navigator.userLanguage || ''];
+                var browserLang = null;
+                for (var i = 0; i < langs.length; i++) {
+                    var l = (langs[i] || '').toLowerCase();
+                    if (l.indexOf('ko') === 0) { browserLang = 'ko'; break; }
+                    if (l.indexOf('de') === 0) { browserLang = 'de'; break; }
+                    if (l.indexOf('pt') === 0) { browserLang = 'pt'; break; }
+                    if (l.indexOf('en') === 0) { browserLang = 'en'; break; }
+                }
+
+                // Se o navegador for coreano ou alemão, redireciona de imediato
+                if (browserLang === 'ko' || browserLang === 'de') {
+                    goTo(browserLang);
+                    return;
+                }
+
+                // 4. Detecção Geográfica por IP (Cloudflare /cdn-cgi/trace; sem ele, idioma do navegador)
+                var resolved = false;
+                function applyCountry(countryCode) {
+                    if (resolved) return;
+                    resolved = true;
+                    var c = (countryCode || '').toUpperCase();
+                    if (c === 'KR') {
+                        goTo('ko');
+                    } else if (c === 'DE' || c === 'AT' || c === 'CH') {
+                        goTo('de');
+                    } else if (c === 'BR' || c === 'PT') {
+                        goTo('pt');
+                    } else {
+                        // Qualquer outro país / na dúvida -> Padrão em Inglês
+                        goTo('en');
+                    }
+                }
+
+                // Tentativa 1: Cloudflare trace local (/cdn-cgi/trace)
+                fetch('/cdn-cgi/trace', { cache: 'no-store' })
+                    .then(function(res) { return res.text(); })
+                    .then(function(text) {
+                        var match = text.match(/loc=([A-Z]{2})/);
+                        if (match && match[1]) {
+                            applyCountry(match[1]);
+                        } else {
+                            fallbackGeo();
+                        }
+                    })
+                    .catch(function() {
+                        fallbackGeo();
+                    });
+
+                // Tentativa 2: idioma do navegador
+                function fallbackGeo() {
+                    // Sem serviço de GeoIP de terceiros (não manda o IP do visitante para fora): vale o idioma do navegador
+                    if (resolved) return;
+                    resolved = true;
+                    goTo(browserLang || 'en');
+                }
+            } catch(e) {}
+        })();
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Fredoka', 'sans-serif'] } } } };
+    </script>
+
+    <style>
+        :root {
+            --wk-azul: #2f6fd6;
+            --wk-azul-esc: #1e3a8a;
+            --wk-amarelo: #fde047;
+            --wk-laranja: #f97316;
+        }
+        html { scroll-behavior: smooth; font-size: 17.5px; }
+        body {
+            background-color: #5ab1ee;
+            background-image: url('fundo.jpg');
+            background-size: cover;
+            background-attachment: fixed;
+            background-position: top center;
+        }
+        body::before {
+            content: ""; position: fixed; inset: 0; z-index: -1;
+            background: linear-gradient(180deg, rgba(20,40,90,0.25) 0%, rgba(20,40,90,0.55) 60%, rgba(10,20,50,0.8) 100%);
+        }
+
+        .panel-wk {
+            background-color: rgba(255, 255, 255, 0.95);
+            border: 4px solid var(--wk-amarelo);
+            border-radius: 1rem;
+            box-shadow: inset 0 0 15px rgba(255,255,255,0.9), 0 10px 30px rgba(0,0,0,0.45);
+        }
+        .header-bg { background: linear-gradient(180deg, #1e3a8a 0%, #3b82f6 100%); }
+
+        .btn-wk {
+            transition: transform .1s, filter .1s;
+            border-bottom-width: 5px;
+            border-color: rgba(0,0,0,0.25);
+            text-shadow: 1px 1px 0px rgba(0,0,0,0.4);
+        }
+        .btn-wk:hover { filter: brightness(1.08); }
+        .btn-wk:active { transform: translateY(5px); border-bottom-width: 0; margin-bottom: 5px; }
+
+        .tab-active { background-color: #3b82f6; color: #fff; border: 3px solid var(--wk-amarelo); border-bottom: none; }
+        .tab-inactive { background-color: rgba(255,255,255,0.7); color: #3b82f6; border: 3px solid transparent; border-bottom: 3px solid var(--wk-amarelo); }
+        .tab-inactive:hover { background-color: rgba(255,255,255,0.95); }
+
+        .link-nav { position: relative; }
+        .link-nav::after {
+            content: ""; position: absolute; left: 0; bottom: -6px; height: 3px; width: 0;
+            background: var(--wk-amarelo); border-radius: 3px; transition: width .2s;
+        }
+        .link-nav:hover::after { width: 100%; }
+
+        .selo { background: linear-gradient(180deg, #fff8dc, #fde047); color: #7c4a03; }
+    </style>
+</head>
+<body class="antialiased text-gray-800 min-h-screen pb-12">
+
+    <!-- Navbar -->
+    <header class="header-bg border-b-4 border-yellow-400 sticky top-0 z-50 shadow-xl">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center h-20">
+                <a href="index-de.html" class="flex items-center gap-3">
+                    <img src="logo.png" alt="Wonder Classic" class="h-16 w-auto drop-shadow-md">
+                    <span class="hidden sm:block text-2xl font-bold text-yellow-300 drop-shadow">Wonder Classic</span>
+                </a>
+
+                <nav class="hidden md:flex gap-7 font-bold text-blue-50">
+                    <a href="index-de.html" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-star"></i> Startseite</a>
+                    <a href="index-de.html#noticias" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-newspaper"></i> Neuigkeiten</a>
+                    <a href="guia-de.html" class="link-nav text-yellow-300 transition"><i class="fa-solid fa-scroll"></i> Quest-Guide</a>
+                    <a href="craft-de.html" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-hammer"></i> Herstellung</a>
+                    <a href="central-de.html" class="link-nav hover:text-yellow-300 transition"><i class="fa-brands fa-discord"></i> Community</a>
+                    <a href="sobre-de.html" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-heart"></i> Über uns</a>
+                    <a href="index-de.html#ranking" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-trophy"></i> Rangliste</a>
+                </nav>
+
+                <div class="flex items-center gap-1 mr-1">
+                    <a href="guia.html" onclick="localStorage.setItem('wk_lang','pt')" class="px-2.5 py-1 rounded-lg font-bold text-sm bg-white/15 text-blue-50 hover:bg-white/30 transition">PT</a>
+                    <a href="guia-en.html" onclick="localStorage.setItem('wk_lang','en')" class="px-2.5 py-1 rounded-lg font-bold text-sm bg-white/15 text-blue-50 hover:bg-white/30 transition">EN</a>
+                    <a href="guia-de.html" onclick="localStorage.setItem('wk_lang','de')" class="px-2.5 py-1 rounded-lg font-bold text-sm bg-yellow-400 text-blue-900 transition">DE</a>
+                    <a href="guia-ko.html" onclick="localStorage.setItem('wk_lang','ko')" class="px-2.5 py-1 rounded-lg font-bold text-sm bg-white/15 text-blue-50 hover:bg-white/30 transition">KO</a>
+                </div>
+                <a href="https://discord.gg/dSzYmkKVE" target="_blank" rel="noopener noreferrer" class="px-5 py-2 bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold rounded-xl btn-wk flex items-center gap-2 shadow"><i class="fa-brands fa-discord"></i> <span class="hidden sm:inline">Discord</span></a>
+            </div>
+        </div>
+    </header>
+
+    <section id="guia" class="container mx-auto px-4 mt-12">
+        <div class="panel-wk overflow-hidden">
+            <div class="h-40 flex items-end relative overflow-hidden border-b-4 border-yellow-400">
+                <img src="fundo.jpg" class="absolute inset-0 w-full h-full object-cover" alt="">
+                <div class="absolute inset-0 bg-gradient-to-t from-blue-900/95 via-blue-900/40 to-transparent"></div>
+                <h2 class="text-3xl font-bold text-white relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,1)] p-5">
+                    <i class="fa-solid fa-scroll text-yellow-300"></i> Quest-Guide — Effizient Leveln & Klassenwechsel
+                </h2>
+            </div>
+
+            <div class="p-6 bg-white">
+                <!-- Wie Quests funktionieren -->
+                <h3 class="text-2xl font-bold text-blue-900 mb-4 flex items-center gap-2"><i class="fa-solid fa-circle-info text-blue-500"></i> Wie Quests funktionieren</h3>
+                <div class="grid md:grid-cols-2 gap-4 mb-8">
+                    <div class="bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
+                        <p class="font-bold text-blue-900 mb-2"><i class="fa-solid fa-circle-exclamation text-yellow-500"></i> Quest annehmen</p>
+                        <p class="text-sm text-gray-700">NPCs mit einem <b>gelben "!"</b> über dem Kopf haben eine Quest. Sprich sie an, um sie anzunehmen. Ein <b>"?"</b> bedeutet, dass du hier eine Quest <b>abgeben</b> kannst.</p>
+                    </div>
+                    <div class="bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
+                        <p class="font-bold text-blue-900 mb-2"><i class="fa-solid fa-location-arrow text-green-500"></i> Pfeil und Minikarte folgen</p>
+                        <p class="text-sm text-gray-700">Das Quest-Fenster (Taste <b>Quest</b> unten) zeigt das Ziel an. Die Schaltfläche <b>"Go"</b> und die <b>Minikarte</b> (oben rechts) zeigen den Weg dorthin.</p>
+                    </div>
+                    <div class="bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
+                        <p class="font-bold text-blue-900 mb-2"><i class="fa-solid fa-hand-fist text-red-500"></i> Jagen oder Sammeln</p>
+                        <p class="text-sm text-gray-700">Die meisten Aufgaben verlangen, X Monster zu <b>besiegen</b> oder Y Gegenstände zu <b>sammeln</b>, die sie fallen lassen. Bleibe auf der angegebenen Karte und besiege die richtigen Monster.</p>
+                    </div>
+                    <div class="bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
+                        <p class="font-bold text-blue-900 mb-2"><i class="fa-solid fa-gift text-purple-500"></i> Abgeben und im Level aufsteigen</p>
+                        <p class="text-sm text-gray-700">Kehre zum markierten NPC zurück, um <b>EXP und Belohnungen</b> zu erhalten. Erledige Quests der Reihe nach — sie führen dich automatisch von Region zu Region.</p>
+                    </div>
+                </div>
+
+                <div class="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-4 mb-8 text-sm text-gray-800">
+                    <p class="font-bold text-blue-900 mb-1"><i class="fa-solid fa-lightbulb text-yellow-500"></i> Nützliche Tipps</p>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li>Suche etwa alle 10 Stufen nach dem <b>Zentral-NPC der nächsten Region</b> (siehe Liste unten).</li>
+                        <li>Um <b>Stufe 30</b> herum folgt der <b>1. Klassenwechsel</b> (die "1st Advancement"-Quest). Nicht verpassen!</li>
+                        <li>Die wiederholbaren <b>"Break Out Quests"</b> erscheinen von Stufe 40 bis 69 — hervorragend für extra EXP.</li>
+                        <li>Zeitlimits beachten: Einige Quests (z. B. schnelle Sammlungen) haben einen Timer — erledige sie am besten am Stück.</li>
+                    </ul>
+                </div>
+
+                <!-- Stufen-Roadmap -->
+                <h3 class="text-2xl font-bold text-blue-900 mb-4 flex items-center gap-2"><i class="fa-solid fa-map-location-dot text-orange-500"></i> Stufen-Roadmap (Wo man levelt)</h3>
+                <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+                    <div class="rounded-xl border-2 border-blue-200 overflow-hidden">
+                        <div class="selo px-4 py-2 font-bold flex items-center justify-between"><span>Stufe 1–10</span><span class="text-xs">Startgebiet</span></div>
+                        <div class="p-4 text-sm">
+                            <p class="font-bold text-blue-900">Elgaill Town</p>
+                            <p class="text-gray-600 mb-2">Haupt-NPC: <b>Wallace</b> + Tutorial</p>
+                            <p class="text-gray-700">Lerne die Grundlagen und mache die ersten Quests der Stadt. Highlight: <i>Ominous Accords</i>.</p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border-2 border-blue-200 overflow-hidden">
+                        <div class="selo px-4 py-2 font-bold flex items-center justify-between"><span>Stufe 10–20</span><span class="text-xs">Elgaill</span></div>
+                        <div class="p-4 text-sm">
+                            <p class="font-bold text-blue-900">Rund um Elgaill</p>
+                            <p class="text-gray-600 mb-2">NPCs: <b>Crusty, Sylphia, Bibi</b></p>
+                            <p class="text-gray-700">Dioraf-Brücke, Paviola-Zirkus, Kontaminierter Wald, Bienenstock. Highlight: <i>Draff's S.O.S.</i></p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border-2 border-blue-200 overflow-hidden">
+                        <div class="selo px-4 py-2 font-bold flex items-center justify-between"><span>Stufe 20–30</span><span class="text-xs">Francis</span></div>
+                        <div class="p-4 text-sm">
+                            <p class="font-bold text-blue-900">Wind-Altar / Francis</p>
+                            <p class="text-gray-600 mb-2">NPCs: <b>Grace, Talon, Elia, Cassy</b></p>
+                            <p class="text-gray-700">Francis-Stadt/Docks, Palmenstrand. Highlight: <i>Elf King's Seal</i>.</p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border-2 border-yellow-400 overflow-hidden ring-2 ring-yellow-200">
+                        <div class="selo px-4 py-2 font-bold flex items-center justify-between"><span>Stufe 30–40</span><span class="text-xs">★ Klasse</span></div>
+                        <div class="p-4 text-sm">
+                            <p class="font-bold text-blue-900">Francis / WonderPlus</p>
+                            <p class="text-gray-600 mb-2">NPCs: <b>Automan, Cop Chups, T.R.Z.</b></p>
+                            <p class="text-gray-700"><b>1. Klassenwechsel!</b> Erledige die <i>1st Advancement</i>-Quest für deine Klasse.</p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border-2 border-blue-200 overflow-hidden">
+                        <div class="selo px-4 py-2 font-bold flex items-center justify-between"><span>Stufe 40–50</span><span class="text-xs">Francis</span></div>
+                        <div class="p-4 text-sm">
+                            <p class="font-bold text-blue-900">Francis / Pilzhügel</p>
+                            <p class="text-gray-600 mb-2">NPCs: <b>Automan, Jodi, Merion</b></p>
+                            <p class="text-gray-700">Südlicher Hellen-Wald. Highlight: <i>Find the Dragon Eggs!</i> (30k EXP).</p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border-2 border-blue-200 overflow-hidden">
+                        <div class="selo px-4 py-2 font-bold flex items-center justify-between"><span>Stufe 50–60</span><span class="text-xs">Nord-Labor</span></div>
+                        <div class="p-4 text-sm">
+                            <p class="font-bold text-blue-900">Nord-Labor</p>
+                            <p class="text-gray-600 mb-2">NPCs: <b>Dr. Kim, Automan, Cody, Chef Jack</b></p>
+                            <p class="text-gray-700">Labor-Quests mit hervorragenden EXP-Belohnungen.</p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border-2 border-blue-200 overflow-hidden">
+                        <div class="selo px-4 py-2 font-bold flex items-center justify-between"><span>Stufe 60–70</span><span class="text-xs">Tempel</span></div>
+                        <div class="p-4 text-sm">
+                            <p class="font-bold text-blue-900">Abeldras-Tempel</p>
+                            <p class="text-gray-600 mb-2">NPCs: <b>Lara, Brad, T.R.Z.</b></p>
+                            <p class="text-gray-700">Erklimme die Tempelgeschosse. Highlight: <i>Radio Frequency Snapped II</i> (60k EXP).</p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border-2 border-blue-200 overflow-hidden">
+                        <div class="selo px-4 py-2 font-bold flex items-center justify-between"><span>Stufe 70–80</span><span class="text-xs">Hellen</span></div>
+                        <div class="p-4 text-sm">
+                            <p class="font-bold text-blue-900">Hellen-Wald</p>
+                            <p class="text-gray-600 mb-2">NPCs: <b>Chris, Annis, Blade, Dirk</b></p>
+                            <p class="text-gray-700">Region mit SEHR vielen Quests. Highlight: <i>Dawn of Another Legend</i> (92k EXP!).</p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border-2 border-blue-200 overflow-hidden">
+                        <div class="selo px-4 py-2 font-bold flex items-center justify-between"><span>Stufe 80–90</span><span class="text-xs">Nagpha</span></div>
+                        <div class="p-4 text-sm">
+                            <p class="font-bold text-blue-900">Nagpha-Sumpf / Bermos</p>
+                            <p class="text-gray-600 mb-2">NPCs: <b>Falsetto, Kashia, Lauren, Zerald</b></p>
+                            <p class="text-gray-700">Der Sumpf und das Bermos-Luftschiff.</p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border-2 border-blue-200 overflow-hidden">
+                        <div class="selo px-4 py-2 font-bold flex items-center justify-between"><span>Stufe 90–100</span><span class="text-xs">Hochland</span></div>
+                        <div class="p-4 text-sm">
+                            <p class="font-bold text-blue-900">Hochland / Bermos</p>
+                            <p class="text-gray-600 mb-2">NPCs: <b>Yaf, Neil, Lauren, Katy Kat</b></p>
+                            <p class="text-gray-700">Highlight: <i>Evidence of the Conspiracy</i>.</p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border-2 border-blue-200 overflow-hidden">
+                        <div class="selo px-4 py-2 font-bold flex items-center justify-between"><span>Stufe 100–110</span><span class="text-xs">Stiller Wald</span></div>
+                        <div class="p-4 text-sm">
+                            <p class="font-bold text-blue-900">Stiller Wald</p>
+                            <p class="text-gray-600 mb-2">NPCs: <b>Neil, Yaf, Lauren, Kadopan</b></p>
+                            <p class="text-gray-700">Highlight: <i>Evil Leader of the Highlands</i> (45k EXP).</p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border-2 border-orange-300 overflow-hidden">
+                        <div class="selo px-4 py-2 font-bold flex items-center justify-between"><span>Stufe 110+</span><span class="text-xs">Endgame</span></div>
+                        <div class="p-4 text-sm">
+                            <p class="font-bold text-blue-900">Havoc / Versteckter Stamm</p>
+                            <p class="text-gray-600 mb-2">NPCs: <b>Rocky, Havoc, Pivrott, Lauren</b></p>
+                            <p class="text-gray-700">Endgame-Inhalte. Highlight: <i>Defeat the Foreman</i> (300k EXP!).</p>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- ===== Klassenwechsel 1. Rang (Stufe 30) ===== -->
+                <div class="mt-10 pt-8 border-t-2 border-dashed border-blue-200">
+                    <h3 class="text-2xl font-bold text-blue-900 mb-2 flex items-center gap-2"><i class="fa-solid fa-shield-halved text-orange-500"></i> Klassenwechsel — 1. Rang (Stufe 30)</h3>
+                    <p class="text-gray-700 mb-2">Klassenwechsel-Quests sind die wichtigsten im ganzen Spiel. Wenn du <b>Stufe 30</b> erreichst, sprich zuerst mit <b class="text-blue-800">Automan</b> (in Francis / WonderPlus) — er verweist dich an deinen Klassentrainer. Erledige die <b>"1st Advancement"</b>-Questreihe und wähle am Ende eine der beiden Spezialisierungen:</p>
+                    <p class="text-xs text-gray-500 mb-5"><span class="inline-block bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full"><i class="fa-solid fa-dungeon"></i> Instanz/Portal</span> = Das Ziel befindet sich <b>innerhalb</b> eines Portals. Alle anderen Orte sind <b>normale</b> Jagdgebiete.</p>
+
+                    <div class="grid md:grid-cols-2 gap-6">
+
+                        <!-- Krieger -->
+                        <div class="rounded-2xl overflow-hidden border-2 border-sky-300 shadow-lg bg-white">
+                            <div class="flex items-center gap-4 p-4 bg-gradient-to-r from-sky-600 to-sky-400">
+                                <img src="classe_esp.png" alt="Swordsman" class="w-20 h-28 object-cover object-top rounded-xl border-2 border-white/80 shadow-md bg-sky-900">
+                                <div class="text-white">
+                                    <p class="text-2xl font-bold drop-shadow">Swordsman (Krieger)</p>
+                                    <p class="text-sm font-semibold text-sky-100">wird zu <span class="bg-white/25 px-2 rounded">Warrior</span> oder <span class="bg-white/25 px-2 rounded">Knight</span></p>
+                                    <p class="text-xs mt-1 text-white/90"><i class="fa-solid fa-scroll"></i> Quest im Log: <b>"1st Adv. I: Swordsman" → "1st Adv. II: Swordsman"</b></p>
+                                    <p class="text-xs text-white/90"><i class="fa-solid fa-user"></i> Start-NPC: <b>Automan</b> — Francis Town</p>
+                                </div>
+                            </div>
+                            <ol class="p-4 space-y-3 text-sm">
+                                <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-sky-500 text-white font-bold flex items-center justify-center">1</span><div><b>Automan</b> (Francis/WonderPlus) → schickt dich zu <b>Zerald</b> an der <b>WonderPlus Gas Station</b>.</div></li>
+                                <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-sky-500 text-white font-bold flex items-center justify-center">2</span><div><b>Zerald</b> (1st Adv. II): Finde und <b class="text-red-600">besiege "Mark"</b>, den Unruhestifter im Versteck <span class="inline-block bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap"><i class="fa-solid fa-dungeon"></i> Missionsportal in Francis Town</span>. Kehre zu Zerald zurück.</div></li>
+                                <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-green-500 text-white font-bold flex items-center justify-center"><i class="fa-solid fa-check"></i></span><div>Wähle <b>Warrior</b> (Stärke/Angriff) oder <b>Knight</b> (Verteidigung/Schild). <span class="text-gray-500">+13.000 EXP</span></div></li>
+                            </ol>
+                        </div>
+
+                        <!-- Magier -->
+                        <div class="rounded-2xl overflow-hidden border-2 border-purple-300 shadow-lg bg-white">
+                            <div class="flex items-center gap-4 p-4 bg-gradient-to-r from-purple-600 to-fuchsia-400">
+                                <img src="classe_mago.png" alt="Mage" class="w-20 h-28 object-cover object-top rounded-xl border-2 border-white/80 shadow-md bg-purple-900">
+                                <div class="text-white">
+                                    <p class="text-2xl font-bold drop-shadow">Mage (Magier)</p>
+                                    <p class="text-sm font-semibold text-purple-100">wird zu <span class="bg-white/25 px-2 rounded">Priest</span> oder <span class="bg-white/25 px-2 rounded">Wizard</span></p>
+                                    <p class="text-xs mt-1 text-white/90"><i class="fa-solid fa-scroll"></i> Quest im Log: <b>"1st Adv. I: Mage" → "1st Adv. II: Mage"</b></p>
+                                    <p class="text-xs text-white/90"><i class="fa-solid fa-user"></i> Start-NPC: <b>Automan</b> — Francis Town</p>
+                                </div>
+                            </div>
+                            <ol class="p-4 space-y-3 text-sm">
+                                <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-purple-500 text-white font-bold flex items-center justify-center">1</span><div><b>Automan</b> → schickt dich zu <b>Kashia</b> am <b>Coral Beach III</b>.</div></li>
+                                <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-purple-500 text-white font-bold flex items-center justify-center">2</span><div><b>Kashia</b> (1st Adv. II): <b class="text-red-600">Besiege 10 "Mad Woman"</b> direkt am <b>Coral Beach III</b>. Kehre zu Kashia zurück.</div></li>
+                                <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-green-500 text-white font-bold flex items-center justify-center"><i class="fa-solid fa-check"></i></span><div>Wähle <b>Priest</b> (Heilung/Unterstützung) oder <b>Wizard</b> (magischer Schaden). <span class="text-gray-500">+13.000 EXP</span></div></li>
+                            </ol>
+                        </div>
+
+                        <!-- Dieb -->
+                        <div class="rounded-2xl overflow-hidden border-2 border-rose-300 shadow-lg bg-white">
+                            <div class="flex items-center gap-4 p-4 bg-gradient-to-r from-rose-700 to-rose-400">
+                                <img src="classe_ladrao.png" alt="Thief" class="w-20 h-28 object-cover object-top rounded-xl border-2 border-white/80 shadow-md bg-rose-900">
+                                <div class="text-white">
+                                    <p class="text-2xl font-bold drop-shadow">Thief (Dieb)</p>
+                                    <p class="text-sm font-semibold text-rose-100">wird zu <span class="bg-white/25 px-2 rounded">Rogue</span> oder <span class="bg-white/25 px-2 rounded">Ninja</span></p>
+                                    <p class="text-xs mt-1 text-white/90"><i class="fa-solid fa-scroll"></i> Quest im Log: <b>"1st Adv. I: Thief" → "1st Adv. II: Thief"</b></p>
+                                    <p class="text-xs text-white/90"><i class="fa-solid fa-user"></i> Start-NPC: <b>Automan</b> — Francis Town</p>
+                                </div>
+                            </div>
+                            <ol class="p-4 space-y-3 text-sm">
+                                <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-rose-500 text-white font-bold flex items-center justify-center">1</span><div><b>Automan</b> → schickt dich zu <b>Luke</b> auf das <b>Dach von WonderPlus</b> (nahe Nachtmarkt I).</div></li>
+                                <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-rose-500 text-white font-bold flex items-center justify-center">2</span><div><b>Luke</b> (1st Adv. II): <b class="text-green-700">Sammle "Poisonous Powder"</b> von den <b>Venom Flowers</b> ganz oben im <b>Forest of Control I</b> <span class="inline-block bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap"><i class="fa-solid fa-dungeon"></i> Instanz in WonderPlus Meadow I</span>. Kehre zu Luke zurück.</div></li>
+                                <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-green-500 text-white font-bold flex items-center justify-center"><i class="fa-solid fa-check"></i></span><div>Wähle <b>Rogue</b> (Beweglichkeit/Krit) oder <b>Ninja</b> (Tarnung/Gift). <span class="text-gray-500">+12.000 EXP</span></div></li>
+                            </ol>
+                        </div>
+
+                        <!-- Scout -->
+                        <div class="rounded-2xl overflow-hidden border-2 border-emerald-300 shadow-lg bg-white">
+                            <div class="flex items-center gap-4 p-4 bg-gradient-to-r from-emerald-600 to-teal-400">
+                                <img src="classe_scout.png" alt="Scout" class="w-20 h-28 object-cover object-top rounded-xl border-2 border-white/80 shadow-md bg-emerald-900">
+                                <div class="text-white">
+                                    <p class="text-2xl font-bold drop-shadow">Scout (Schütze)</p>
+                                    <p class="text-sm font-semibold text-emerald-100">wird zu <span class="bg-white/25 px-2 rounded">Archer</span> oder <span class="bg-white/25 px-2 rounded">Gunner</span></p>
+                                    <p class="text-xs mt-1 text-white/90"><i class="fa-solid fa-scroll"></i> Quest im Log: <b>"1st Adv. I: Scout" → "1st Adv. II: Scout"</b></p>
+                                    <p class="text-xs text-white/90"><i class="fa-solid fa-user"></i> Start-NPC: <b>Automan</b> — Francis Town</p>
+                                </div>
+                            </div>
+                            <ol class="p-4 space-y-3 text-sm">
+                                <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-emerald-500 text-white font-bold flex items-center justify-center">1</span><div><b>Automan</b> → schickt dich zu <b>Wolf</b> im <b>Palm Tree Park I</b>.</div></li>
+                                <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-emerald-500 text-white font-bold flex items-center justify-center">2</span><div><b>Wolf</b> (1st Adv. II): <b class="text-red-600">Besiege 10 "Afro Chups"</b> am <b>Palm Beach</b> — <b class="text-orange-600"><i class="fa-regular fa-clock"></i> innerhalb von 8 Minuten!</b> Kehre zu Wolf zurück.</div></li>
+                                <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-green-500 text-white font-bold flex items-center justify-center"><i class="fa-solid fa-check"></i></span><div>Wähle <b>Archer</b> (Bogen/Präzision) oder <b>Gunner</b> (Schusswaffen). <span class="text-gray-500">+13.000 EXP</span></div></li>
+                            </ol>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- ===== Klassenwechsel 2. Rang (Stufe 80) ===== -->
+                <div class="mt-10 pt-8 border-t-2 border-dashed border-blue-200">
+                    <h3 class="text-2xl font-bold text-blue-900 mb-2 flex items-center gap-2"><i class="fa-solid fa-dragon text-purple-600"></i> Klassenwechsel — 2. Rang (Stufe 80)</h3>
+                    <p class="text-gray-700 mb-3">Auf Stufe 80 folgt der 2. Rang (die Questreihe <b>"Faithful Road"</b>). Hier <b>gibt es keine Wahl mehr</b>: Jede Spezialisierung entwickelt sich geradlinig in ihre Meisterklasse weiter:</p>
+                    <div class="flex flex-wrap items-center gap-2 text-sm font-semibold mb-4">
+                        <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full"><i class="fa-solid fa-1"></i> Sprich mit <b>Lauren</b></span><i class="fa-solid fa-arrow-right text-gray-400"></i>
+                        <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full"><i class="fa-solid fa-2"></i> sie schickt dich zum <b>Trainer</b></span><i class="fa-solid fa-arrow-right text-gray-400"></i>
+                        <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full"><i class="fa-solid fa-3"></i> erfülle die <b>Aufgaben</b></span><i class="fa-solid fa-arrow-right text-gray-400"></i>
+                        <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full"><i class="fa-solid fa-gem"></i> bringe den <b>Stone of Potential</b> zu Lauren</span>
+                    </div>
+                    <div class="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-3 text-sm text-gray-800 mb-5">
+                        <i class="fa-solid fa-triangle-exclamation text-yellow-600"></i> <b>Voraussetzung:</b> Du musst <b>alle Fertigkeitspunkte</b> (deine 2. Klasse voll ausgeskillt) verteilt haben, sonst lässt Lauren dich nicht beginnen. Die 3. Aufgabe verlangt ein <b>Materialpaket</b> (Barren, Edelsteine, Steine, Beatmungsmasken und Mega-Tränke).
+                    </div>
+
+                    <div class="grid md:grid-cols-2 gap-4">
+
+                        <!-- Warrior -> Berserker -->
+                        <div class="rounded-xl overflow-hidden border-2 border-sky-300 bg-white shadow">
+                            <div class="flex items-center gap-3 p-3 bg-gradient-to-r from-sky-600 to-sky-400 text-white">
+                                <img src="classe_esp.png" class="w-12 h-16 object-cover object-top rounded-lg border border-white/70 bg-sky-900" alt="">
+                                <div><p class="font-bold text-lg leading-tight">Warrior <i class="fa-solid fa-arrow-right text-xs"></i> Berserker</p><p class="text-xs text-sky-100">Trainer: <b>Zerald</b> (WonderPlus Gas Station)</p></div>
+                            </div>
+                            <div class="p-3 text-sm space-y-1">
+                                <p><i class="fa-solid fa-scroll text-blue-600"></i> <b>Quest im Log:</b> "Faithful Road: Warrior"</p>
+                                <p><i class="fa-solid fa-user text-blue-600"></i> <b>Start-NPC:</b> Lauren — Hellen Office</p>
+                                <p><i class="fa-solid fa-crosshairs text-red-500"></i> <b>Jagd:</b> 250 Workvisor (Everwood Lumberyard) · 150 Impact Incubus (Pruneus Powerhouse)</p>
+                                <p><i class="fa-solid fa-box text-amber-600"></i> <b>Materialien:</b> 200 Gold Ingot, 100 Mithril, 50 Shining Stone, 200 Respirator, 200 Mega MP Pot</p>
+                            </div>
+                        </div>
+
+                        <!-- Knight -> Paladin -->
+                        <div class="rounded-xl overflow-hidden border-2 border-sky-300 bg-white shadow">
+                            <div class="flex items-center gap-3 p-3 bg-gradient-to-r from-sky-700 to-blue-400 text-white">
+                                <img src="classe_esp.png" class="w-12 h-16 object-cover object-top rounded-lg border border-white/70 bg-sky-900" alt="">
+                                <div><p class="font-bold text-lg leading-tight">Knight <i class="fa-solid fa-arrow-right text-xs"></i> Paladin</p><p class="text-xs text-sky-100">Trainer: <b>Zerald</b> (WonderPlus Gas Station)</p></div>
+                            </div>
+                            <div class="p-3 text-sm space-y-1">
+                                <p><i class="fa-solid fa-scroll text-blue-600"></i> <b>Quest im Log:</b> "Faithful Road: Knight"</p>
+                                <p><i class="fa-solid fa-user text-blue-600"></i> <b>Start-NPC:</b> Lauren — Hellen Office</p>
+                                <p><i class="fa-solid fa-crosshairs text-red-500"></i> <b>Jagd:</b> 60 Woodworker's Hammer von Woodworkers (Everwood Lumberyard) · Cannon Turtle Horn (Pruneus Powerhouse)</p>
+                                <p><i class="fa-solid fa-box text-amber-600"></i> <b>Materialien:</b> 200 Silver Ingot, 100 Diamond, 50 Moon Stone, 200 Respirator, 200 Mega HP Pot</p>
+                            </div>
+                        </div>
+
+                        <!-- Priest -> Saint -->
+                        <div class="rounded-xl overflow-hidden border-2 border-purple-300 bg-white shadow">
+                            <div class="flex items-center gap-3 p-3 bg-gradient-to-r from-purple-600 to-fuchsia-400 text-white">
+                                <img src="classe_mago.png" class="w-12 h-16 object-cover object-top rounded-lg border border-white/70 bg-purple-900" alt="">
+                                <div><p class="font-bold text-lg leading-tight">Priest <i class="fa-solid fa-arrow-right text-xs"></i> Saint</p><p class="text-xs text-purple-100">Trainer: <b>Kashia</b> (Coral Beach III)</p></div>
+                            </div>
+                            <div class="p-3 text-sm space-y-1">
+                                <p><i class="fa-solid fa-scroll text-blue-600"></i> <b>Quest im Log:</b> "Faithful Road: Priest"</p>
+                                <p><i class="fa-solid fa-user text-blue-600"></i> <b>Start-NPC:</b> Lauren — Hellen Office</p>
+                                <p><i class="fa-solid fa-crosshairs text-red-500"></i> <b>Jagd:</b> 100 Woodworker (Everwood Lumberyard) · 20 Cannon Turtle (Pruneus Powerhouse)</p>
+                                <p><i class="fa-solid fa-box text-amber-600"></i> <b>Materialien:</b> 200 Silver Ingot, 100 Diamond, 50 Moon Stone, 200 Respirator, 200 Mega HP Pot</p>
+                            </div>
+                        </div>
+
+                        <!-- Wizard -> Warlock -->
+                        <div class="rounded-xl overflow-hidden border-2 border-purple-300 bg-white shadow">
+                            <div class="flex items-center gap-3 p-3 bg-gradient-to-r from-fuchsia-700 to-purple-400 text-white">
+                                <img src="classe_mago.png" class="w-12 h-16 object-cover object-top rounded-lg border border-white/70 bg-purple-900" alt="">
+                                <div><p class="font-bold text-lg leading-tight">Wizard <i class="fa-solid fa-arrow-right text-xs"></i> Warlock</p><p class="text-xs text-purple-100">Trainer: <b>Kashia</b> (Coral Beach III)</p></div>
+                            </div>
+                            <div class="p-3 text-sm space-y-1">
+                                <p><i class="fa-solid fa-scroll text-blue-600"></i> <b>Quest im Log:</b> "Faithful Road: Wizard"</p>
+                                <p><i class="fa-solid fa-user text-blue-600"></i> <b>Start-NPC:</b> Lauren — Hellen Office</p>
+                                <p><i class="fa-solid fa-crosshairs text-red-500"></i> <b>Jagd:</b> 120 Impact Incubus (Pruneus Powerhouse) · 250 Accubus (Nagpha Swamp IV–VI)</p>
+                                <p><i class="fa-solid fa-box text-amber-600"></i> <b>Materialien:</b> 200 Gold Ingot, 100 Ruby, 50 Sun Stone, 200 Respirator, 200 Mega MP Pot</p>
+                            </div>
+                        </div>
+
+                        <!-- Rogue -> Knave -->
+                        <div class="rounded-xl overflow-hidden border-2 border-rose-300 bg-white shadow">
+                            <div class="flex items-center gap-3 p-3 bg-gradient-to-r from-rose-700 to-rose-400 text-white">
+                                <img src="classe_ladrao.png" class="w-12 h-16 object-cover object-top rounded-lg border border-white/70 bg-rose-900" alt="">
+                                <div><p class="font-bold text-lg leading-tight">Rogue <i class="fa-solid fa-arrow-right text-xs"></i> Knave</p><p class="text-xs text-rose-100">Trainer: <b>Luke</b> (WonderPlus-Dach)</p></div>
+                            </div>
+                            <div class="p-3 text-sm space-y-1">
+                                <p><i class="fa-solid fa-scroll text-blue-600"></i> <b>Quest im Log:</b> "Faithful Road: Rogue"</p>
+                                <p><i class="fa-solid fa-user text-blue-600"></i> <b>Start-NPC:</b> Lauren — Hellen Office</p>
+                                <p><i class="fa-solid fa-crosshairs text-red-500"></i> <b>Aufgaben:</b> 50 Impact Incubus Horn (Pruneus Powerhouse) · sprich mit <b>Yaf</b> (Yafkun Campsite, Lamupel Highlands)</p>
+                                <p><i class="fa-solid fa-box text-amber-600"></i> <b>Materialien:</b> 200 Gold Ingot, 100 Iron Ingot, 50 Sun Stone, 200 Respirator, 200 Mega MP Pot</p>
+                            </div>
+                        </div>
+
+                        <!-- Ninja -> Assassin -->
+                        <div class="rounded-xl overflow-hidden border-2 border-rose-300 bg-white shadow">
+                            <div class="flex items-center gap-3 p-3 bg-gradient-to-r from-rose-900 to-rose-500 text-white">
+                                <img src="classe_ladrao.png" class="w-12 h-16 object-cover object-top rounded-lg border border-white/70 bg-rose-900" alt="">
+                                <div><p class="font-bold text-lg leading-tight">Ninja <i class="fa-solid fa-arrow-right text-xs"></i> Assassin</p><p class="text-xs text-rose-100">Trainer: <b>Luke</b> (WonderPlus-Dach)</p></div>
+                            </div>
+                            <div class="p-3 text-sm space-y-1">
+                                <p><i class="fa-solid fa-scroll text-blue-600"></i> <b>Quest im Log:</b> "Faithful Road: Ninja"</p>
+                                <p><i class="fa-solid fa-user text-blue-600"></i> <b>Start-NPC:</b> Lauren — Hellen Office</p>
+                                <p><i class="fa-solid fa-crosshairs text-red-500"></i> <b>Aufgaben:</b> 30 Hammerman (Bermos Aircraft III) · sprich mit <b>Yaf</b> (Yafkun Campsite, Lamupel Highlands)</p>
+                                <p><i class="fa-solid fa-box text-amber-600"></i> <b>Materialien:</b> 200 Silver Ingot, 100 Emerald, 50 Dark Stone, 200 Respirator, 200 Mega HP Pot</p>
+                            </div>
+                        </div>
+
+                        <!-- Archer -> Ranger -->
+                        <div class="rounded-xl overflow-hidden border-2 border-emerald-300 bg-white shadow">
+                            <div class="flex items-center gap-3 p-3 bg-gradient-to-r from-emerald-600 to-teal-400 text-white">
+                                <img src="classe_scout.png" class="w-12 h-16 object-cover object-top rounded-lg border border-white/70 bg-emerald-900" alt="">
+                                <div><p class="font-bold text-lg leading-tight">Archer <i class="fa-solid fa-arrow-right text-xs"></i> Ranger</p><p class="text-xs text-emerald-100">Trainer: <b>Wolf</b> (Palm Tree Park I)</p></div>
+                            </div>
+                            <div class="p-3 text-sm space-y-1">
+                                <p><i class="fa-solid fa-scroll text-blue-600"></i> <b>Quest im Log:</b> "Faithful Road: Archer"</p>
+                                <p><i class="fa-solid fa-user text-blue-600"></i> <b>Start-NPC:</b> Lauren — Hellen Office</p>
+                                <p><i class="fa-solid fa-crosshairs text-red-500"></i> <b>Jagd:</b> 200 Cutting Machine (Everwood Lumberyard) · 100 Iron Gunner (Nagpha Swamp Wasteyard II–III)</p>
+                                <p><i class="fa-solid fa-box text-amber-600"></i> <b>Materialien:</b> 200 Silver Ingot, 100 Emerald, 50 Shining Stone, 200 Respirator, 200 Mega HP Pot</p>
+                            </div>
+                        </div>
+
+                        <!-- Gunner -> Gunslinger -->
+                        <div class="rounded-xl overflow-hidden border-2 border-emerald-300 bg-white shadow">
+                            <div class="flex items-center gap-3 p-3 bg-gradient-to-r from-teal-700 to-emerald-400 text-white">
+                                <img src="classe_scout.png" class="w-12 h-16 object-cover object-top rounded-lg border border-white/70 bg-emerald-900" alt="">
+                                <div><p class="font-bold text-lg leading-tight">Gunner <i class="fa-solid fa-arrow-right text-xs"></i> Gunslinger</p><p class="text-xs text-emerald-100">Trainer: <b>Wolf</b> (Palm Tree Park I)</p></div>
+                            </div>
+                            <div class="p-3 text-sm space-y-1">
+                                <p><i class="fa-solid fa-scroll text-blue-600"></i> <b>Quest im Log:</b> "Faithful Road: Gunner"</p>
+                                <p><i class="fa-solid fa-user text-blue-600"></i> <b>Start-NPC:</b> Lauren — Hellen Office</p>
+                                <p><i class="fa-solid fa-crosshairs text-red-500"></i> <b>Jagd:</b> 60 Deviltron (Nagpha Swamp) · Cannon Turtle Horn (Pruneus Powerhouse)</p>
+                                <p><i class="fa-solid fa-box text-amber-600"></i> <b>Materialien:</b> 200 Gold Ingot, 100 Mithril, 50 Dark Stone, 200 Respirator, 200 Mega MP Pot</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Wichtiger Hinweis -->
+                    <div class="mt-6 bg-amber-50 border-2 border-amber-300 rounded-xl p-4 flex items-center gap-3.5 shadow-sm text-gray-800">
+                        <div class="shrink-0 w-10 h-10 bg-amber-400 text-amber-950 rounded-lg flex items-center justify-center text-xl shadow-sm">
+                            <i class="fa-solid fa-gem"></i>
+                        </div>
+                        <div class="text-sm md:text-base leading-relaxed">
+                            <span class="font-bold text-amber-950"><i class="fa-solid fa-circle-exclamation text-amber-600"></i> Wichtiger Hinweis:</span>
+                            Bei allen Klassen ist der abschließende Schritt die Übergabe des <b>Stone of Potential</b> an <b>Lauren</b>. Die höheren Ränge (3. und 4. Rang auf späteren Stufen) folgen exakt derselben Klassenlinie!
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Fußzeile -->
+    <footer class="container mx-auto px-4 mt-12">
+        <div class="panel-wk p-6 text-center">
+            <img src="logo.png" alt="" class="mx-auto h-16 object-contain mb-3 opacity-90">
+            <p class="font-bold text-blue-900">Wonder Classic — Community-Portal &amp; Enzyklopädie</p>
+            <p class="text-sm text-gray-600 mt-1">Gemeinnütziges Fan-Projekt für klassische 2D-MMORPGs.</p>
+            <div class="flex justify-center gap-4 mt-4 text-2xl text-blue-600">
+                <a href="https://discord.gg/dSzYmkKVE" target="_blank" class="hover:text-blue-800 transition" title="Discord"><i class="fa-brands fa-discord"></i></a>
+                <a href="#" class="hover:text-blue-800 transition" title="YouTube"><i class="fa-brands fa-youtube"></i></a>
+                <a href="#" class="hover:text-blue-800 transition" title="GitHub"><i class="fa-brands fa-github"></i></a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

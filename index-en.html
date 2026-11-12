@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wonder Classic — Fan Community &amp; Encyclopedia</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+
+        <!-- Detecção e Redirecionamento Automático de Idioma (KO / DE / PT / Padrão EN) -->
+    <script>
+        (function() {
+            try {
+                var parts = window.location.pathname.split('/').filter(Boolean);
+                var cleanPath = parts.length ? parts[parts.length - 1] : 'index';
+                var m = cleanPath.match(/^(index|guia|craft|central|download|sobre)(?:-(en|de|ko))?(?:\.html)?$/i);
+                var base = m ? m[1].toLowerCase() : 'index';
+                if (base === 'download') base = 'central';
+                var currentLang = (m && m[2]) ? m[2].toLowerCase() : 'pt';
+
+                function goTo(targetLang) {
+                    if (!targetLang || targetLang === currentLang) return;
+                    try { localStorage.setItem('wk_lang', targetLang); } catch(e) {}
+                    var isClean = (window.location.protocol.indexOf('http') === 0) && (window.location.pathname.indexOf('.html') === -1);
+                    var targetFile;
+                    if (isClean) {
+                        targetFile = (targetLang === 'pt') ? (base === 'index' ? './' : base) : (base + '-' + targetLang);
+                    } else {
+                        targetFile = (targetLang === 'pt') ? (base + '.html') : (base + '-' + targetLang + '.html');
+                    }
+                    window.location.replace(targetFile);
+                }
+
+                // 1. Se o visitante acessou diretamente uma URL já localizada (-de, -ko, -en), fixa a preferência e não redireciona
+                if (currentLang !== 'pt') {
+                    try { localStorage.setItem('wk_lang', currentLang); } catch(e) {}
+                    return;
+                }
+
+                // 2. Se o visitante já tem preferência explícita salva (ex: clicou antes em EN, DE, KO ou PT)
+                var pref = null;
+                try { pref = localStorage.getItem('wk_lang'); } catch(e) {}
+                if (pref === 'pt' || pref === 'en' || pref === 'de' || pref === 'ko') {
+                    goTo(pref);
+                    return;
+                }
+
+                // 3. Detecção pelo idioma do navegador (navigator.languages)
+                var langs = navigator.languages || [navigator.language || navigator.userLanguage || ''];
+                var browserLang = null;
+                for (var i = 0; i < langs.length; i++) {
+                    var l = (langs[i] || '').toLowerCase();
+                    if (l.indexOf('ko') === 0) { browserLang = 'ko'; break; }
+                    if (l.indexOf('de') === 0) { browserLang = 'de'; break; }
+                    if (l.indexOf('pt') === 0) { browserLang = 'pt'; break; }
+                    if (l.indexOf('en') === 0) { browserLang = 'en'; break; }
+                }
+
+                // Se o navegador for coreano ou alemão, redireciona de imediato
+                if (browserLang === 'ko' || browserLang === 'de') {
+                    goTo(browserLang);
+                    return;
+                }
+
+                // 4. Detecção Geográfica por IP (Cloudflare /cdn-cgi/trace; sem ele, idioma do navegador)
+                var resolved = false;
+                function applyCountry(countryCode) {
+                    if (resolved) return;
+                    resolved = true;
+                    var c = (countryCode || '').toUpperCase();
+                    if (c === 'KR') {
+                        goTo('ko');
+                    } else if (c === 'DE' || c === 'AT' || c === 'CH') {
+                        goTo('de');
+                    } else if (c === 'BR' || c === 'PT') {
+                        goTo('pt');
+                    } else {
+                        // Qualquer outro país / na dúvida -> Padrão em Inglês
+                        goTo('en');
+                    }
+                }
+
+                // Tentativa 1: Cloudflare trace local (/cdn-cgi/trace)
+                fetch('/cdn-cgi/trace', { cache: 'no-store' })
+                    .then(function(res) { return res.text(); })
+                    .then(function(text) {
+                        var match = text.match(/loc=([A-Z]{2})/);
+                        if (match && match[1]) {
+                            applyCountry(match[1]);
+                        } else {
+                            fallbackGeo();
+                        }
+                    })
+                    .catch(function() {
+                        fallbackGeo();
+                    });
+
+                // Tentativa 2: idioma do navegador
+                function fallbackGeo() {
+                    // Sem serviço de GeoIP de terceiros (não manda o IP do visitante para fora): vale o idioma do navegador
+                    if (resolved) return;
+                    resolved = true;
+                    goTo(browserLang || 'en');
+                }
+            } catch(e) {}
+        })();
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Fredoka', 'sans-serif'] } } } };
+    </script>
+
+    <style>
+        :root {
+            --wk-azul: #2f6fd6;
+            --wk-azul-esc: #1e3a8a;
+            --wk-amarelo: #fde047;
+            --wk-laranja: #f97316;
+        }
+        html { scroll-behavior: smooth; font-size: 17.5px; }
+        body {
+            background-color: #5ab1ee;
+            background-image: url('fundo.jpg');
+            background-size: cover;
+            background-attachment: fixed;
+            background-position: top center;
+        }
+        /* camada escura suave por cima do fundo, para o conteúdo respirar */
+        body::before {
+            content: ""; position: fixed; inset: 0; z-index: -1;
+            background: linear-gradient(180deg, rgba(20,40,90,0.25) 0%, rgba(20,40,90,0.55) 60%, rgba(10,20,50,0.8) 100%);
+        }
+
+        .panel-wk {
+            background-color: rgba(255, 255, 255, 0.95);
+            border: 4px solid var(--wk-amarelo);
+            border-radius: 1rem;
+            box-shadow: inset 0 0 15px rgba(255,255,255,0.9), 0 10px 30px rgba(0,0,0,0.45);
+        }
+        .header-bg { background: linear-gradient(180deg, #1e3a8a 0%, #3b82f6 100%); }
+
+        .btn-wk {
+            transition: transform .1s, filter .1s;
+            border-bottom-width: 5px;
+            border-color: rgba(0,0,0,0.25);
+            text-shadow: 1px 1px 0px rgba(0,0,0,0.4);
+        }
+        .btn-wk:hover { filter: brightness(1.08); }
+        .btn-wk:active { transform: translateY(5px); border-bottom-width: 0; margin-bottom: 5px; }
+
+        .tab-active { background-color: #3b82f6; color: #fff; border: 3px solid var(--wk-amarelo); border-bottom: none; }
+        .tab-inactive { background-color: rgba(255,255,255,0.7); color: #3b82f6; border: 3px solid transparent; border-bottom: 3px solid var(--wk-amarelo); }
+        .tab-inactive:hover { background-color: rgba(255,255,255,0.95); }
+
+        /* logo flutuando devagar */
+        @keyframes flutua { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
+        .flutua { animation: flutua 5s ease-in-out infinite; }
+
+        /* halo escuro ao redor da logo para ela saltar sobre o fundo cheio de detalhes */
+        .hero-logo { filter: drop-shadow(0 0 22px rgba(10,20,45,0.9)) drop-shadow(0 0 40px rgba(10,20,45,0.7)) drop-shadow(0 12px 16px rgba(0,0,0,0.6)); }
+
+        /* título de seção com fitinha */
+        .selo { background: linear-gradient(180deg, #fff8dc, #fde047); color: #7c4a03; }
+
+        .link-nav { position: relative; }
+        .link-nav::after {
+            content: ""; position: absolute; left: 0; bottom: -6px; height: 3px; width: 0;
+            background: var(--wk-amarelo); border-radius: 3px; transition: width .2s;
+        }
+        .link-nav:hover::after { width: 100%; }
+
+        .online-dot { box-shadow: 0 0 0 0 rgba(34,197,94,0.7); animation: pulso 1.8s infinite; }
+        @keyframes pulso { 0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.7); } 70% { box-shadow: 0 0 0 10px rgba(34,197,94,0); } 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); } }
+    </style>
+</head>
+<body class="antialiased text-gray-800 min-h-screen pb-12">
+
+    <!-- Navbar -->
+    <header class="header-bg border-b-4 border-yellow-400 sticky top-0 z-50 shadow-xl">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center h-20">
+                <a href="#topo" class="flex items-center gap-3">
+                    <img src="logo.png" alt="Wonder Classic" class="h-16 w-auto drop-shadow-md">
+                    <span class="hidden sm:block text-2xl font-bold text-yellow-300 drop-shadow">Wonder Classic</span>
+                </a>
+
+                <nav class="hidden md:flex gap-7 font-bold text-blue-50">
+                    <a href="#topo" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-star"></i> Home</a>
+                    <a href="#noticias" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-newspaper"></i> News</a>
+                    <a href="guia-en.html" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-scroll"></i> Quest Guide</a>
+                    <a href="craft-en.html" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-hammer"></i> Crafting</a>
+                    <a href="central-en.html" class="link-nav hover:text-yellow-300 transition"><i class="fa-brands fa-discord"></i> Community</a>
+                    <a href="sobre-en.html" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-heart"></i> About Us</a>
+                    <a href="#ranking" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-trophy"></i> Ranking</a>
+                </nav>
+
+                <div class="flex items-center gap-1 mr-1"><a href="index.html" onclick="localStorage.setItem('wk_lang','pt')" class="px-2.5 py-1 rounded-lg font-bold text-sm bg-white/15 text-blue-50 hover:bg-white/30 transition">PT</a><a href="index-en.html" onclick="localStorage.setItem('wk_lang','en')" class="px-2.5 py-1 rounded-lg font-bold text-sm bg-yellow-400 text-blue-900 transition">EN</a><a href="index-de.html" onclick="localStorage.setItem('wk_lang','de')" class="px-2.5 py-1 rounded-lg font-bold text-sm bg-white/15 text-blue-50 hover:bg-white/30 transition">DE</a><a href="index-ko.html" onclick="localStorage.setItem('wk_lang','ko')" class="px-2.5 py-1 rounded-lg font-bold text-sm bg-white/15 text-blue-50 hover:bg-white/30 transition">KO</a></div>
+                <a href="https://discord.gg/dSzYmkKVE" target="_blank" rel="noopener noreferrer" class="px-5 py-2 bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold rounded-xl btn-wk flex items-center gap-2 shadow"><i class="fa-brands fa-discord"></i> <span class="hidden sm:inline">Discord</span></a>
+            </div>
+        </div>
+    </header>
+
+        <!-- Hero -->
+    <section id="topo" class="container mx-auto px-4 pt-10 pb-8 text-center">
+        <img src="logo.png" alt="Wonder Classic Online" class="hero-logo flutua mx-auto w-full max-w-xl" style="max-height: 260px; object-fit: contain;">
+        <p class="mt-6 text-lg sm:text-xl font-semibold text-white max-w-2xl mx-auto drop-shadow-[0_2px_3px_rgba(0,0,0,0.9)]">
+            Encyclopedia &amp; Fan Community for the Classic 2010 2D MMORPG.
+        </p>
+        <div class="mt-7 flex flex-wrap justify-center gap-4">
+            <a href="https://discord.gg/dSzYmkKVE" target="_blank" rel="noopener noreferrer" class="px-8 py-4 bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold text-xl rounded-2xl btn-wk flex items-center gap-2 shadow-lg">
+                <i class="fa-brands fa-discord text-2xl"></i> Join Discord
+            </a>
+            <a href="guia-en.html" class="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xl rounded-2xl btn-wk flex items-center gap-2 shadow-lg">
+                <i class="fa-solid fa-scroll"></i> Quest Guides
+            </a>
+            <a href="craft-en.html" class="px-8 py-4 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xl rounded-2xl btn-wk flex items-center gap-2 shadow-lg">
+                <i class="fa-solid fa-hammer"></i> Items &amp; Crafting
+            </a>
+        </div>
+        <!-- Status Pill -->
+        <div class="mt-8 inline-flex items-center gap-3 bg-white/90 border-2 border-yellow-400 rounded-full px-5 py-2 font-bold shadow-lg">
+            <span class="online-dot inline-block w-3 h-3 rounded-full bg-green-500"></span>
+            Community <span class="text-green-600">ACTIVE</span>
+            <span class="text-gray-400">·</span>
+            <span class="text-blue-700"><i class="fa-brands fa-discord"></i> Our Discord</span>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4">
+        <div class="flex flex-col lg:flex-row gap-8">
+
+            <!-- Left Column: Updates and Guides -->
+            <div class="w-full lg:w-2/3" id="noticias">
+                <div class="panel-wk overflow-hidden">
+                    <div class="h-44 flex items-end justify-start relative overflow-hidden border-b-4 border-yellow-400">
+                        <img src="fundo.jpg" class="absolute inset-0 w-full h-full object-cover" alt="">
+                        <div class="absolute inset-0 bg-gradient-to-t from-blue-900/95 via-blue-900/40 to-transparent"></div>
+                        <h2 class="text-3xl font-bold text-white relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,1)] p-5">
+                            <i class="fa-solid fa-bullhorn text-yellow-300"></i> Encyclopedia Updates
+                        </h2>
+                    </div>
+
+                    <div class="flex px-4 pt-4 gap-2 font-bold bg-blue-50">
+                        <button class="px-6 py-2 rounded-t-xl tab-active text-lg shadow-sm">All</button>
+                        <button class="px-6 py-2 rounded-t-xl tab-inactive text-lg"><i class="fa-solid fa-scroll"></i> Guides</button>
+                        <button class="px-6 py-2 rounded-t-xl tab-inactive text-lg"><i class="fa-solid fa-book"></i> Database</button>
+                    </div>
+
+                    <div class="p-6 space-y-5 bg-white">
+                        <article class="flex gap-4 bg-blue-50/60 p-4 rounded-xl border-2 border-blue-200 hover:border-yellow-400 hover:shadow-lg transition">
+                            <div class="hidden sm:flex w-14 h-14 shrink-0 rounded-xl bg-blue-600 text-white items-center justify-center text-2xl shadow"><i class="fa-solid fa-book-open"></i></div>
+                            <div class="flex-1">
+                                <span class="text-xs font-bold text-white bg-blue-600 px-3 py-1 rounded-full inline-block uppercase shadow-sm">Encyclopedia</span>
+                                <h3 class="text-xl font-bold text-blue-900 mt-1">Complete Quest Guides (Level 1 to 140)</h3>
+                                <p class="text-gray-700 mt-1 text-sm font-medium">Detailed leveling roadmap and full walkthroughs for 1st and 2nd class advancement quests for all classes.</p>
+                            </div>
+                        </article>
+
+                        <article class="flex gap-4 bg-blue-50/60 p-4 rounded-xl border-2 border-blue-200 hover:border-yellow-400 hover:shadow-lg transition">
+                            <div class="hidden sm:flex w-14 h-14 shrink-0 rounded-xl bg-amber-500 text-white items-center justify-center text-2xl shadow"><i class="fa-solid fa-hammer"></i></div>
+                            <div class="flex-1">
+                                <span class="text-xs font-bold text-white bg-amber-600 px-3 py-1 rounded-full inline-block uppercase shadow-sm">Crafting</span>
+                                <h3 class="text-xl font-bold text-blue-900 mt-1">Mixer Recipes & Material Locations</h3>
+                                <p class="text-gray-700 mt-1 text-sm font-medium">Browse complete recipes for weapon and armor crafting, mixer tools, and ore extraction spots across the game.</p>
+                            </div>
+                        </article>
+
+                        <article class="flex gap-4 bg-blue-50/60 p-4 rounded-xl border-2 border-blue-200 hover:border-yellow-400 hover:shadow-lg transition">
+                            <div class="hidden sm:flex w-14 h-14 shrink-0 rounded-xl bg-indigo-600 text-white items-center justify-center text-2xl shadow"><i class="fa-brands fa-discord"></i></div>
+                            <div class="flex-1">
+                                <span class="text-xs font-bold text-white bg-indigo-600 px-3 py-1 rounded-full inline-block uppercase shadow-sm">Community</span>
+                                <h3 class="text-xl font-bold text-blue-900 mt-1">Reconnect with Nostalgic Gamers on Discord</h3>
+                                <p class="text-gray-700 mt-1 text-sm font-medium">Join our international Discord community to share memories, tips, and celebrate classic 2010s side-scroller MMORPGs.</p>
+                            </div>
+                        </article>
+                    </div>
+                </div>
+
+                <!-- How to Join the Community -->
+                <div id="comunidade" class="panel-wk mt-8 p-6">
+                    <h2 class="text-2xl font-bold text-blue-900 border-b-2 border-yellow-400 pb-2 mb-5 flex items-center gap-2">
+                        <i class="fa-solid fa-compass text-blue-600"></i> How to Get Involved
+                    </h2>
+                    <div class="grid sm:grid-cols-3 gap-4">
+                        <div class="text-center bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
+                            <div class="mx-auto w-12 h-12 rounded-full bg-blue-500 text-white font-bold text-xl flex items-center justify-center shadow mb-2">1</div>
+                            <h3 class="font-bold text-blue-900">Explore Guides</h3>
+                            <p class="text-sm text-gray-600 mt-1">Access our rich collection of quest guides, item stats, and recipes.</p>
+                        </div>
+                        <div class="text-center bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
+                            <div class="mx-auto w-12 h-12 rounded-full bg-blue-500 text-white font-bold text-xl flex items-center justify-center shadow mb-2">2</div>
+                            <h3 class="font-bold text-blue-900">Join the Discord</h3>
+                            <p class="text-sm text-gray-600 mt-1">Connect with players and fans in our international discussion channels.</p>
+                        </div>
+                        <div class="text-center bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
+                            <div class="mx-auto w-12 h-12 rounded-full bg-blue-500 text-white font-bold text-xl flex items-center justify-center shadow mb-2">3</div>
+                            <h3 class="font-bold text-blue-900">Share Memories</h3>
+                            <p class="text-sm text-gray-600 mt-1">Contribute with guides, ask questions, and relive the golden retro era.</p>
+                        </div>
+                    </div>
+                    <div class="mt-6 flex flex-wrap gap-4 justify-center">
+                        <a href="https://discord.gg/dSzYmkKVE" target="_blank" rel="noopener noreferrer" class="px-8 py-4 bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold text-xl rounded-2xl btn-wk flex items-center gap-2 shadow-lg">
+                            <i class="fa-brands fa-discord"></i> Join Our Discord
+                        </a>
+                        <a href="guia-en.html" class="px-8 py-4 bg-blue-600 text-white font-bold text-xl rounded-2xl btn-wk flex items-center gap-2 shadow-lg">
+                            <i class="fa-solid fa-scroll"></i> View Quest Guides
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <aside class="w-full lg:w-1/3 space-y-6">
+                <div class="panel-wk p-6 flex flex-col gap-4">
+                    <h3 class="text-center text-xl font-bold text-blue-900 flex items-center justify-center gap-2"><i class="fa-brands fa-discord text-[#5865F2]"></i> Community Hub</h3>
+                    <a href="https://discord.gg/dSzYmkKVE" target="_blank" rel="noopener noreferrer" class="w-full py-4 bg-[#5865F2] hover:bg-[#4752c4] text-white text-center font-bold text-xl rounded-xl btn-wk flex justify-center items-center gap-2 shadow">
+                        <i class="fa-brands fa-discord"></i> Join Our Discord
+                    </a>
+                    <a href="guia-en.html" class="w-full py-3 bg-blue-500 hover:bg-blue-600 text-white text-center font-bold text-lg rounded-xl btn-wk flex justify-center items-center gap-2 shadow">
+                        <i class="fa-solid fa-book-open"></i> Explore Guides
+                    </a>
+                </div>
+
+                <div class="panel-wk p-5">
+                    <h3 class="text-xl font-bold text-blue-900 border-b-2 border-yellow-400 pb-2 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-shield-halved text-blue-500"></i> Portal Info
+                    </h3>
+                    <div class="flex justify-between items-center text-base font-bold mb-2">
+                        <span class="text-gray-800 flex items-center gap-2"><span class="online-dot inline-block w-3 h-3 rounded-full bg-green-500"></span> Community Portal</span>
+                        <span class="text-green-600">ACTIVE</span>
+                    </div>
+                    <div class="w-full bg-gray-300 rounded-full h-5 border-2 border-gray-400 p-0.5">
+                        <div class="bg-gradient-to-r from-blue-400 to-indigo-500 h-full rounded-full shadow-inner" style="width:100%"></div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 mt-4 text-center">
+                        <div class="bg-blue-50 rounded-lg p-2 border border-blue-200"><div class="text-2xl font-bold text-blue-700">140</div><div class="text-xs text-gray-600">Levels doc.</div></div>
+                        <div class="bg-blue-50 rounded-lg p-2 border border-blue-200"><div class="text-2xl font-bold text-blue-700">4</div><div class="text-xs text-gray-600">Classes</div></div>
+                        <div class="bg-blue-50 rounded-lg p-2 border border-blue-200"><div class="text-2xl font-bold text-blue-700">100%</div><div class="text-xs text-gray-600">Free</div></div>
+                    </div>
+                </div>
+
+                <div class="panel-wk p-5" id="ranking">
+                    <h3 class="text-xl font-bold text-blue-900 border-b-2 border-yellow-400 pb-2 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-star text-yellow-500"></i> Community Archive
+                    </h3>
+                    <div class="text-center py-6 px-3 bg-blue-50/60 rounded-xl border-2 border-dashed border-blue-200">
+                        <div class="w-12 h-12 mx-auto rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center text-xl shadow-sm mb-2">
+                            <i class="fa-solid fa-heart text-pink-500"></i>
+                        </div>
+                        <h4 class="font-bold text-blue-900 text-lg">Historical Preservation</h4>
+                        <p class="text-xs sm:text-sm text-gray-600 mt-1 font-medium leading-relaxed">
+                            A non-profit tribute dedicated to documenting and archiving classic 2D retro MMORPG adventures.
+                        </p>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </main>
+
+    <!-- Guides Featured -->
+    <section class="container mx-auto px-4 mt-12">
+        <div class="panel-wk p-6">
+            <h2 class="text-2xl font-bold text-blue-900 border-b-2 border-yellow-400 pb-2 mb-5 flex items-center gap-2"><i class="fa-solid fa-book-open text-orange-500"></i> Featured Guides</h2>
+            <div class="grid md:grid-cols-2 gap-5">
+                <a href="guia-en.html" class="group block rounded-2xl overflow-hidden border-2 border-sky-300 shadow-lg bg-white hover:-translate-y-1 hover:shadow-xl transition">
+                    <div class="h-28 relative overflow-hidden">
+                        <img src="fundo.jpg" class="absolute inset-0 w-full h-full object-cover" alt="">
+                        <div class="absolute inset-0 bg-gradient-to-t from-sky-900/95 via-sky-800/50 to-sky-600/30"></div>
+                        <h3 class="absolute bottom-3 left-4 text-2xl font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,1)]"><i class="fa-solid fa-scroll text-yellow-300"></i> Quest Guide</h3>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-sm text-gray-700">Complete roadmap from level 1 to 140 including class change quests for all specializations.</p>
+                        <span class="inline-flex items-center gap-2 mt-3 font-bold text-sky-700 group-hover:gap-3 transition-all">Open guide <i class="fa-solid fa-arrow-right"></i></span>
+                    </div>
+                </a>
+                <a href="craft-en.html" class="group block rounded-2xl overflow-hidden border-2 border-amber-300 shadow-lg bg-white hover:-translate-y-1 hover:shadow-xl transition">
+                    <div class="h-28 relative overflow-hidden">
+                        <img src="fundo.jpg" class="absolute inset-0 w-full h-full object-cover" alt="">
+                        <div class="absolute inset-0 bg-gradient-to-t from-amber-900/95 via-amber-800/50 to-amber-600/30"></div>
+                        <h3 class="absolute bottom-3 left-4 text-2xl font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,1)]"><i class="fa-solid fa-hammer text-yellow-300"></i> Crafting Guide</h3>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-sm text-gray-700">Browse weapon and armor mixer formulas, mineral extraction zones, and recipe catalogs.</p>
+                        <span class="inline-flex items-center gap-2 mt-3 font-bold text-amber-700 group-hover:gap-3 transition-all">Open guide <i class="fa-solid fa-arrow-right"></i></span>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <footer class="container mx-auto px-4 mt-12">
+        <div class="panel-wk p-6 text-center">
+            <img src="logo.png" alt="" class="mx-auto h-16 object-contain mb-3 opacity-90">
+            <p class="font-bold text-blue-900">Wonder Classic — Fan Community &amp; Encyclopedia</p>
+            <p class="text-sm text-gray-600 mt-1">Non-profit tribute made by retro MMORPG enthusiasts.</p>
+            <div class="flex justify-center gap-4 mt-4 text-2xl text-blue-600">
+                <a href="https://discord.gg/dSzYmkKVE" target="_blank" class="hover:text-blue-800 transition" title="Discord"><i class="fa-brands fa-discord"></i></a>
+                <a href="#" class="hover:text-blue-800 transition" title="YouTube"><i class="fa-brands fa-youtube"></i></a>
+                <a href="#" class="hover:text-blue-800 transition" title="GitHub"><i class="fa-brands fa-github"></i></a>
+            </div>
+        </div>
+    </footer>
+
+
+</body>
+</html>

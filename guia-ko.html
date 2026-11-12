@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>퀘스트 가이드 — 원더 클래식 온라인</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+
+        <!-- Detecção e Redirecionamento Automático de Idioma (KO / DE / PT / Padrão EN) -->
+    <script>
+        (function() {
+            try {
+                var parts = window.location.pathname.split('/').filter(Boolean);
+                var cleanPath = parts.length ? parts[parts.length - 1] : 'index';
+                var m = cleanPath.match(/^(index|guia|craft|central|download|sobre)(?:-(en|de|ko))?(?:\.html)?$/i);
+                var base = m ? m[1].toLowerCase() : 'index';
+                if (base === 'download') base = 'central';
+                var currentLang = (m && m[2]) ? m[2].toLowerCase() : 'pt';
+
+                function goTo(targetLang) {
+                    if (!targetLang || targetLang === currentLang) return;
+                    try { localStorage.setItem('wk_lang', targetLang); } catch(e) {}
+                    var isClean = (window.location.protocol.indexOf('http') === 0) && (window.location.pathname.indexOf('.html') === -1);
+                    var targetFile;
+                    if (isClean) {
+                        targetFile = (targetLang === 'pt') ? (base === 'index' ? './' : base) : (base + '-' + targetLang);
+                    } else {
+                        targetFile = (targetLang === 'pt') ? (base + '.html') : (base + '-' + targetLang + '.html');
+                    }
+                    window.location.replace(targetFile);
+                }
+
+                // 1. Se o visitante acessou diretamente uma URL já localizada (-de, -ko, -en), fixa a preferência e não redireciona
+                if (currentLang !== 'pt') {
+                    try { localStorage.setItem('wk_lang', currentLang); } catch(e) {}
+                    return;
+                }
+
+                // 2. Se o visitante já tem preferência explícita salva (ex: clicou antes em EN, DE, KO ou PT)
+                var pref = null;
+                try { pref = localStorage.getItem('wk_lang'); } catch(e) {}
+                if (pref === 'pt' || pref === 'en' || pref === 'de' || pref === 'ko') {
+                    goTo(pref);
+                    return;
+                }
+
+                // 3. Detecção pelo idioma do navegador (navigator.languages)
+                var langs = navigator.languages || [navigator.language || navigator.userLanguage || ''];
+                var browserLang = null;
+                for (var i = 0; i < langs.length; i++) {
+                    var l = (langs[i] || '').toLowerCase();
+                    if (l.indexOf('ko') === 0) { browserLang = 'ko'; break; }
+                    if (l.indexOf('de') === 0) { browserLang = 'de'; break; }
+                    if (l.indexOf('pt') === 0) { browserLang = 'pt'; break; }
+                    if (l.indexOf('en') === 0) { browserLang = 'en'; break; }
+                }
+
+                // Se o navegador for coreano ou alemão, redireciona de imediato
+                if (browserLang === 'ko' || browserLang === 'de') {
+                    goTo(browserLang);
+                    return;
+                }
+
+                // 4. Detecção Geográfica por IP (Cloudflare /cdn-cgi/trace; sem ele, idioma do navegador)
+                var resolved = false;
+                function applyCountry(countryCode) {
+                    if (resolved) return;
+                    resolved = true;
+                    var c = (countryCode || '').toUpperCase();
+                    if (c === 'KR') {
+                        goTo('ko');
+                    } else if (c === 'DE' || c === 'AT' || c === 'CH') {
+                        goTo('de');
+                    } else if (c === 'BR' || c === 'PT') {
+                        goTo('pt');
+                    } else {
+                        // Qualquer outro país / na dúvida -> Padrão em Inglês
+                        goTo('en');
+                    }
+                }
+
+                // Tentativa 1: Cloudflare trace local (/cdn-cgi/trace)
+                fetch('/cdn-cgi/trace', { cache: 'no-store' })
+                    .then(function(res) { return res.text(); })
+                    .then(function(text) {
+                        var match = text.match(/loc=([A-Z]{2})/);
+                        if (match && match[1]) {
+                            applyCountry(match[1]);
+                        } else {
+                            fallbackGeo();
+                        }
+                    })
+                    .catch(function() {
+                        fallbackGeo();
+                    });
+
+                // Tentativa 2: idioma do navegador
+                function fallbackGeo() {
+                    // Sem serviço de GeoIP de terceiros (não manda o IP do visitante para fora): vale o idioma do navegador
+                    if (resolved) return;
+                    resolved = true;
+                    goTo(browserLang || 'en');
+                }
+            } catch(e) {}
+        })();
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Fredoka', 'Noto Sans KR', 'sans-serif'] } } } };
+    </script>
+
+    <style>
+        :root {
+            --wk-azul: #2f6fd6;
+            --wk-azul-esc: #1e3a8a;
+            --wk-amarelo: #fde047;
+            --wk-laranja: #f97316;
+        }
+        html { scroll-behavior: smooth; font-size: 17.5px; }
+        body {
+            background-color: #5ab1ee;
+            background-image: url('fundo.jpg');
+            background-size: cover;
+            background-attachment: fixed;
+            background-position: top center;
+        }
+        body::before {
+            content: ""; position: fixed; inset: 0; z-index: -1;
+            background: linear-gradient(180deg, rgba(20,40,90,0.25) 0%, rgba(20,40,90,0.55) 60%, rgba(10,20,50,0.8) 100%);
+        }
+
+        .panel-wk {
+            background-color: rgba(255, 255, 255, 0.95);
+            border: 4px solid var(--wk-amarelo);
+            border-radius: 1rem;
+            box-shadow: inset 0 0 15px rgba(255,255,255,0.9), 0 10px 30px rgba(0,0,0,0.45);
+        }
+        .header-bg { background: linear-gradient(180deg, #1e3a8a 0%, #3b82f6 100%); }
+
+        .btn-wk {
+            transition: transform .1s, filter .1s;
+            border-bottom-width: 5px;
+            border-color: rgba(0,0,0,0.25);
+            text-shadow: 1px 1px 0px rgba(0,0,0,0.4);
+        }
+        .btn-wk:hover { filter: brightness(1.08); }
+        .btn-wk:active { transform: translateY(5px); border-bottom-width: 0; margin-bottom: 5px; }
+
+        .tab-active { background-color: #3b82f6; color: #fff; border: 3px solid var(--wk-amarelo); border-bottom: none; }
+        .tab-inactive { background-color: rgba(255,255,255,0.7); color: #3b82f6; border: 3px solid transparent; border-bottom: 3px solid var(--wk-amarelo); }
+        .tab-inactive:hover { background-color: rgba(255,255,255,0.95); }
+
+        .link-nav { position: relative; }
+        .link-nav::after {
+            content: ""; position: absolute; left: 0; bottom: -6px; height: 3px; width: 0;
+            background: var(--wk-amarelo); border-radius: 3px; transition: width .2s;
+        }
+        .link-nav:hover::after { width: 100%; }
+
+        .selo { background: linear-gradient(180deg, #fff8dc, #fde047); color: #7c4a03; }
+    </style>
+</head>
+<body class="antialiased text-gray-800 min-h-screen pb-12">
+
+    <!-- Navbar -->
+    <header class="header-bg border-b-4 border-yellow-400 sticky top-0 z-50 shadow-xl">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center h-20">
+                <a href="index-ko.html" class="flex items-center gap-3">
+                    <img src="logo.png" alt="Wonder Classic" class="h-16 w-auto drop-shadow-md">
+                    <span class="hidden sm:block text-2xl font-bold text-yellow-300 drop-shadow">Wonder Classic</span>
+                </a>
+
+                <nav class="hidden md:flex gap-7 font-bold text-blue-50">
+                    <a href="index-ko.html" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-star"></i> 홈</a>
+                    <a href="index-ko.html#noticias" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-newspaper"></i> 소식</a>
+                    <a href="guia-ko.html" class="link-nav text-yellow-300 transition"><i class="fa-solid fa-scroll"></i> 퀘스트 가이드</a>
+                    <a href="craft-ko.html" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-hammer"></i> 아이템 제작</a>
+                    <a href="central-ko.html" class="link-nav hover:text-yellow-300 transition"><i class="fa-brands fa-discord"></i> 커뮤니티</a>
+                    <a href="sobre-ko.html" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-heart"></i> 프로젝트 소개</a>
+                    <a href="index-ko.html#ranking" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-trophy"></i> 랭킹</a>
+                </nav>
+
+                <div class="flex items-center gap-1 mr-1">
+                    <a href="guia.html" onclick="localStorage.setItem('wk_lang','pt')" class="px-2.5 py-1 rounded-lg font-bold text-sm bg-white/15 text-blue-50 hover:bg-white/30 transition">PT</a>
+                    <a href="guia-en.html" onclick="localStorage.setItem('wk_lang','en')" class="px-2.5 py-1 rounded-lg font-bold text-sm bg-white/15 text-blue-50 hover:bg-white/30 transition">EN</a>
+                    <a href="guia-de.html" onclick="localStorage.setItem('wk_lang','de')" class="px-2.5 py-1 rounded-lg font-bold text-sm bg-white/15 text-blue-50 hover:bg-white/30 transition">DE</a>
+                    <a href="guia-ko.html" onclick="localStorage.setItem('wk_lang','ko')" class="px-2.5 py-1 rounded-lg font-bold text-sm bg-yellow-400 text-blue-900 transition">KO</a>
+                </div>
+                <a href="https://discord.gg/dSzYmkKVE" target="_blank" rel="noopener noreferrer" class="px-5 py-2 bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold rounded-xl btn-wk flex items-center gap-2 shadow"><i class="fa-brands fa-discord"></i> <span class="hidden sm:inline">디스코드</span></a>
+            </div>
+        </div>
+    </header>
+
+    <section id="guia" class="container mx-auto px-4 mt-12">
+        <div class="panel-wk overflow-hidden">
+            <div class="h-40 flex items-end relative overflow-hidden border-b-4 border-yellow-400">
+                <img src="fundo.jpg" class="absolute inset-0 w-full h-full object-cover" alt="">
+                <div class="absolute inset-0 bg-gradient-to-t from-blue-900/95 via-blue-900/40 to-transparent"></div>
+                <h2 class="text-3xl font-bold text-white relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,1)] p-5">
+                    <i class="fa-solid fa-scroll text-yellow-300"></i> 퀘스트 가이드 — 효율적인 레벨업 및 육성법
+                </h2>
+            </div>
+
+            <div class="p-6 bg-white">
+                <!-- 퀘스트 진행 기본 가이드 -->
+                <h3 class="text-2xl font-bold text-blue-900 mb-4 flex items-center gap-2"><i class="fa-solid fa-circle-info text-blue-500"></i> 퀘스트 진행 기본 원리</h3>
+                <div class="grid md:grid-cols-2 gap-4 mb-8">
+                    <div class="bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
+                        <p class="font-bold text-blue-900 mb-2"><i class="fa-solid fa-circle-exclamation text-yellow-500"></i> 퀘스트 수락하기</p>
+                        <p class="text-sm text-gray-700">머리 위에 <b>노란색 느낌표 '!'</b>가 뜬 NPC는 시작 가능한 퀘스트를 가지고 있습니다. 대화를 걸어 수락하세요. <b>물음표 '?'</b>는 퀘스트를 <b>완료</b>할 수 있다는 표시입니다.</p>
+                    </div>
+                    <div class="bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
+                        <p class="font-bold text-blue-900 mb-2"><i class="fa-solid fa-location-arrow text-green-500"></i> 진행 방향 및 미니맵 확인</p>
+                        <p class="text-sm text-gray-700">퀘스트 창(하단 <b>Quest</b> 버튼)에서 현재 목표를 확인할 수 있습니다. <b>'Go'</b> 버튼과 화면 우측 상단의 <b>미니맵</b>이 목표 지점과 방향을 친절히 안내합니다.</p>
+                    </div>
+                    <div class="bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
+                        <p class="font-bold text-blue-900 mb-2"><i class="fa-solid fa-hand-fist text-red-500"></i> 사냥 및 전리품 수집</p>
+                        <p class="text-sm text-gray-700">대부분의 퀘스트는 몬스터 처치 또는 전리품 수집입니다. 표시된 필드에서 지정된 몬스터를 사냥하여 목표를 달성하세요.</p>
+                    </div>
+                    <div class="bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
+                        <p class="font-bold text-blue-900 mb-2"><i class="fa-solid fa-gift text-purple-500"></i> 완료 보고 및 빠른 레벨업</p>
+                        <p class="text-sm text-gray-700">지정된 NPC에게 돌아가 <b>경험치(EXP)와 보상</b>을 획득하세요. 퀘스트를 연계하여 진행하면 자연스럽게 다음 사냥터로 레벨업하며 이동하게 됩니다.</p>
+                    </div>
+                </div>
+
+                <div class="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-4 mb-8 text-sm text-gray-800">
+                    <p class="font-bold text-blue-900 mb-1"><i class="fa-solid fa-lightbulb text-yellow-500"></i> 핵심 레벨업 팁</p>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li>약 10레벨마다 <b>다음 지역의 거점 NPC</b>를 찾아가 새로운 퀘스트를 받으세요 (하단 로드맵 참조).</li>
+                        <li><b>레벨 30</b>에 <b>1차 전직</b>(1st Advancement) 퀘스트가 열립니다. 놓치지 말고 최우선으로 진행하세요!</li>
+                        <li>40~69레벨 구간에는 반복 수행 가능한 <b>'Break Out Quest'</b>가 열려 대량의 추가 경험치를 얻을 수 있습니다.</li>
+                        <li>시간제한 퀘스트: 일부 수집 퀘스트에는 타이머가 적용되므로 수락 후 한 번에 집중해서 완료하세요.</li>
+                    </ul>
+                </div>
+
+                <!-- 레벨별 로드맵 -->
+                <h3 class="text-2xl font-bold text-blue-900 mb-4 flex items-center gap-2"><i class="fa-solid fa-map-location-dot text-orange-500"></i> 레벨별 추천 사냥터 및 로드맵</h3>
+                <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+                    <div class="rounded-xl border-2 border-blue-200 overflow-hidden">
+                        <div class="selo px-4 py-2 font-bold flex items-center justify-between"><span>레벨 1–10</span><span class="text-xs">시작 마을</span></div>
+                        <div class="p-4 text-sm">
+                            <p class="font-bold text-blue-900">엘가일 마을 (Elgaill Town)</p>
+                            <p class="text-gray-600 mb-2">주요 NPC: <b>월리스(Wallace)</b> + 튜토리얼</p>
+                            <p class="text-gray-700">기본 조작을 익히고 시작 마을 퀘스트를 수행합니다. 핵심: <i>Ominous Accords</i>.</p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border-2 border-blue-200 overflow-hidden">
+                        <div class="selo px-4 py-2 font-bold flex items-center justify-between"><span>레벨 10–20</span><span class="text-xs">엘가일 인근</span></div>
+                        <div class="p-4 text-sm">
+                            <p class="font-bold text-blue-900">엘가일 주변 지역</p>
+                            <p class="text-gray-600 mb-2">NPC: <b>크러스티, 실피아, 비비</b></p>
+                            <p class="text-gray-700">디오라프 다리, 파비올라 서커스, 오염된 숲, 벌집. 핵심: <i>Draff's S.O.S.</i></p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border-2 border-blue-200 overflow-hidden">
+                        <div class="selo px-4 py-2 font-bold flex items-center justify-between"><span>레벨 20–30</span><span class="text-xs">프란시스</span></div>
+                        <div class="p-4 text-sm">
+                            <p class="font-bold text-blue-900">바람의 제단 / 프란시스</p>
+                            <p class="text-gray-600 mb-2">NPC: <b>그레이스, 탈론, 엘리아, 캐시</b></p>
+                            <p class="text-gray-700">프란시스 마을/부둣가, 팜 비치. 핵심: <i>Elf King's Seal</i>.</p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border-2 border-yellow-400 overflow-hidden ring-2 ring-yellow-200">
+                        <div class="selo px-4 py-2 font-bold flex items-center justify-between"><span>레벨 30–40</span><span class="text-xs">★ 전직 구간</span></div>
+                        <div class="p-4 text-sm">
+                            <p class="font-bold text-blue-900">프란시스 / 원더플러스</p>
+                            <p class="text-gray-600 mb-2">NPC: <b>오토맨, 츱스 경관, T.R.Z.</b></p>
+                            <p class="text-gray-700"><b>1차 전직 달성!</b> 직업에 맞는 <i>1st Advancement</i> 퀘스트를 완수하세요.</p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border-2 border-blue-200 overflow-hidden">
+                        <div class="selo px-4 py-2 font-bold flex items-center justify-between"><span>레벨 40–50</span><span class="text-xs">버섯 언덕</span></div>
+                        <div class="p-4 text-sm">
+                            <p class="font-bold text-blue-900">프란시스 / 버섯 언덕</p>
+                            <p class="text-gray-600 mb-2">NPC: <b>오토맨, 조디, 메리온</b></p>
+                            <p class="text-gray-700">남부 헬렌 숲. 핵심: <i>Find the Dragon Eggs!</i> (경험치 3만).</p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border-2 border-blue-200 overflow-hidden">
+                        <div class="selo px-4 py-2 font-bold flex items-center justify-between"><span>레벨 50–60</span><span class="text-xs">북부 연구소</span></div>
+                        <div class="p-4 text-sm">
+                            <p class="font-bold text-blue-900">북부 연구소 (North Lab)</p>
+                            <p class="text-gray-600 mb-2">NPC: <b>김 박사, 오토맨, 코디, 잭 셰프</b></p>
+                            <p class="text-gray-700">연구소 연계 퀘스트로 빠른 레벨업 가능.</p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border-2 border-blue-200 overflow-hidden">
+                        <div class="selo px-4 py-2 font-bold flex items-center justify-between"><span>레벨 60–70</span><span class="text-xs">신전</span></div>
+                        <div class="p-4 text-sm">
+                            <p class="font-bold text-blue-900">아벨드라스 신전 (Abeldras)</p>
+                            <p class="text-gray-600 mb-2">NPC: <b>라라, 브래드, T.R.Z.</b></p>
+                            <p class="text-gray-700">신전 층별 공략. 핵심: <i>Radio Frequency Snapped II</i> (경험치 6만).</p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border-2 border-blue-200 overflow-hidden">
+                        <div class="selo px-4 py-2 font-bold flex items-center justify-between"><span>레벨 70–80</span><span class="text-xs">헬렌 숲</span></div>
+                        <div class="p-4 text-sm">
+                            <p class="font-bold text-blue-900">헬렌 숲 (Hellen Forest)</p>
+                            <p class="text-gray-600 mb-2">NPC: <b>크리스, 아니스, 블레이드, 더크</b></p>
+                            <p class="text-gray-700">퀘스트 밀집 지역. 핵심: <i>Dawn of Another Legend</i> (경험치 9.2만!).</p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border-2 border-blue-200 overflow-hidden">
+                        <div class="selo px-4 py-2 font-bold flex items-center justify-between"><span>레벨 80–90</span><span class="text-xs">낙파 늪지</span></div>
+                        <div class="p-4 text-sm">
+                            <p class="font-bold text-blue-900">낙파 늪지 / 베르모스 비행선</p>
+                            <p class="text-gray-600 mb-2">NPC: <b>파르세토, 카시아, 로렌, 제럴드</b></p>
+                            <p class="text-gray-700">늪지대와 베르모스 비행선 내부 사냥.</p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border-2 border-blue-200 overflow-hidden">
+                        <div class="selo px-4 py-2 font-bold flex items-center justify-between"><span>레벨 90–100</span><span class="text-xs">고원</span></div>
+                        <div class="p-4 text-sm">
+                            <p class="font-bold text-blue-900">고원 지대 / 베르모스</p>
+                            <p class="text-gray-600 mb-2">NPC: <b>야프, 닐, 로렌, 케이티 캣</b></p>
+                            <p class="text-gray-700">핵심 퀘스트: <i>Evidence of the Conspiracy</i>.</p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border-2 border-blue-200 overflow-hidden">
+                        <div class="selo px-4 py-2 font-bold flex items-center justify-between"><span>레벨 100–110</span><span class="text-xs">침묵의 숲</span></div>
+                        <div class="p-4 text-sm">
+                            <p class="font-bold text-blue-900">침묵의 숲 (Silent Forest)</p>
+                            <p class="text-gray-600 mb-2">NPC: <b>닐, 야프, 로렌, 카도판</b></p>
+                            <p class="text-gray-700">핵심: <i>Evil Leader of the Highlands</i> (경험치 4.5만).</p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border-2 border-orange-300 overflow-hidden">
+                        <div class="selo px-4 py-2 font-bold flex items-center justify-between"><span>레벨 110+</span><span class="text-xs">엔드게임</span></div>
+                        <div class="p-4 text-sm">
+                            <p class="font-bold text-blue-900">하복 / 은신처 부족</p>
+                            <p class="text-gray-600 mb-2">NPC: <b>록키, 하복, 피브롯, 로렌</b></p>
+                            <p class="text-gray-700">최상위 엔드게임 콘텐츠. 핵심: <i>Defeat the Foreman</i> (경험치 30만!).</p>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- ===== 1차 전직 가이드 (30레벨) ===== -->
+                <div class="mt-10 pt-8 border-t-2 border-dashed border-blue-200">
+                    <h3 class="text-2xl font-bold text-blue-900 mb-2 flex items-center gap-2"><i class="fa-solid fa-shield-halved text-orange-500"></i> 직업 변경 — 1차 전직 가이드 (30레벨)</h3>
+                    <p class="text-gray-700 mb-2">전직 퀘스트는 캐릭터 성장의 가장 중요한 분기점입니다. <b>30레벨</b>을 달성하면 먼저 프란시스 / 원더플러스의 <b class="text-blue-800">오토맨(Automan)</b>을 찾아가 전직 가이드를 받으세요. <b>"1st Advancement"</b> 퀘스트를 완료하고 두 가지 전문 특화 직업 중 하나를 선택할 수 있습니다:</p>
+                    <p class="text-xs text-gray-500 mb-5"><span class="inline-block bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full"><i class="fa-solid fa-dungeon"></i> 인스턴스/포탈</span> = 맵 내의 <b>전용 포탈</b>을 통해 진입하는 미션 구역입니다. 나머지 장소는 일반 필드 사냥터입니다.</p>
+
+                    <div class="grid md:grid-cols-2 gap-6">
+
+                        <!-- 검사 -->
+                        <div class="rounded-2xl overflow-hidden border-2 border-sky-300 shadow-lg bg-white">
+                            <div class="flex items-center gap-4 p-4 bg-gradient-to-r from-sky-600 to-sky-400">
+                                <img src="classe_esp.png" alt="Swordsman" class="w-20 h-28 object-cover object-top rounded-xl border-2 border-white/80 shadow-md bg-sky-900">
+                                <div class="text-white">
+                                    <p class="text-2xl font-bold drop-shadow">검사 (Swordsman)</p>
+                                    <p class="text-sm font-semibold text-sky-100">전직: <span class="bg-white/25 px-2 rounded">워리어(Warrior)</span> 또는 <span class="bg-white/25 px-2 rounded">나이트(Knight)</span></p>
+                                    <p class="text-xs mt-1 text-white/90"><i class="fa-solid fa-scroll"></i> 퀘스트 명: <b>"1st Adv. I: Swordsman" → "1st Adv. II: Swordsman"</b></p>
+                                    <p class="text-xs text-white/90"><i class="fa-solid fa-user"></i> 시작 NPC: <b>오토맨(Automan)</b> — 프란시스 마을</p>
+                                </div>
+                            </div>
+                            <ol class="p-4 space-y-3 text-sm">
+                                <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-sky-500 text-white font-bold flex items-center justify-center">1</span><div><b>오토맨</b> (프란시스) → <b>원더플러스 주유소</b>의 NPC <b>제럴드(Zerald)</b>에게 이동.</div></li>
+                                <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-sky-500 text-white font-bold flex items-center justify-center">2</span><div><b>제럴드</b> (1st Adv. II): 은신 중인 말썽꾼 <b class="text-red-600">'마크(Mark)' 처치</b> <span class="inline-block bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap"><i class="fa-solid fa-dungeon"></i> 프란시스 마을 내 미션 포탈 진입</span>. 제럴드에게 보고.</div></li>
+                                <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-green-500 text-white font-bold flex items-center justify-center"><i class="fa-solid fa-check"></i></span><div><b>워리어</b>(공격력/탱킹) 또는 <b>나이트</b>(방어력/방패) 중 선택. <span class="text-gray-500">+13,000 EXP</span></div></li>
+                            </ol>
+                        </div>
+
+                        <!-- 마법사 -->
+                        <div class="rounded-2xl overflow-hidden border-2 border-purple-300 shadow-lg bg-white">
+                            <div class="flex items-center gap-4 p-4 bg-gradient-to-r from-purple-600 to-fuchsia-400">
+                                <img src="classe_mago.png" alt="Mage" class="w-20 h-28 object-cover object-top rounded-xl border-2 border-white/80 shadow-md bg-purple-900">
+                                <div class="text-white">
+                                    <p class="text-2xl font-bold drop-shadow">마법사 (Mage)</p>
+                                    <p class="text-sm font-semibold text-purple-100">전직: <span class="bg-white/25 px-2 rounded">프리스트(Priest)</span> 또는 <span class="bg-white/25 px-2 rounded">위저드(Wizard)</span></p>
+                                    <p class="text-xs mt-1 text-white/90"><i class="fa-solid fa-scroll"></i> 퀘스트 명: <b>"1st Adv. I: Mage" → "1st Adv. II: Mage"</b></p>
+                                    <p class="text-xs text-white/90"><i class="fa-solid fa-user"></i> 시작 NPC: <b>오토맨(Automan)</b> — 프란시스 마을</p>
+                                </div>
+                            </div>
+                            <ol class="p-4 space-y-3 text-sm">
+                                <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-purple-500 text-white font-bold flex items-center justify-center">1</span><div><b>오토맨</b> → <b>산호 해변 III(Coral Beach III)</b>의 NPC <b>카시아(Kashia)</b>에게 이동.</div></li>
+                                <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-purple-500 text-white font-bold flex items-center justify-center">2</span><div><b>카시아</b> (1st Adv. II): 산호 해변 III에서 <b class="text-red-600">'미친 여자(Mad Woman)' 10마리 처치</b>. 카시아에게 보고.</div></li>
+                                <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-green-500 text-white font-bold flex items-center justify-center"><i class="fa-solid fa-check"></i></span><div><b>프리스트</b>(힐/서포트) 또는 <b>위저드</b>(강력한 마법 공격) 중 선택. <span class="text-gray-500">+13,000 EXP</span></div></li>
+                            </ol>
+                        </div>
+
+                        <!-- 도적 -->
+                        <div class="rounded-2xl overflow-hidden border-2 border-rose-300 shadow-lg bg-white">
+                            <div class="flex items-center gap-4 p-4 bg-gradient-to-r from-rose-700 to-rose-400">
+                                <img src="classe_ladrao.png" alt="Thief" class="w-20 h-28 object-cover object-top rounded-xl border-2 border-white/80 shadow-md bg-rose-900">
+                                <div class="text-white">
+                                    <p class="text-2xl font-bold drop-shadow">도적 (Thief)</p>
+                                    <p class="text-sm font-semibold text-rose-100">전직: <span class="bg-white/25 px-2 rounded">로그(Rogue)</span> 또는 <span class="bg-white/25 px-2 rounded">닌자(Ninja)</span></p>
+                                    <p class="text-xs mt-1 text-white/90"><i class="fa-solid fa-scroll"></i> 퀘스트 명: <b>"1st Adv. I: Thief" → "1st Adv. II: Thief"</b></p>
+                                    <p class="text-xs text-white/90"><i class="fa-solid fa-user"></i> 시작 NPC: <b>오토맨(Automan)</b> — 프란시스 마을</p>
+                                </div>
+                            </div>
+                            <ol class="p-4 space-y-3 text-sm">
+                                <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-rose-500 text-white font-bold flex items-center justify-center">1</span><div><b>오토맨</b> → <b>원더플러스 옥상</b>(야시장 I 인근)의 NPC <b>루크(Luke)</b>에게 이동.</div></li>
+                                <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-rose-500 text-white font-bold flex items-center justify-center">2</span><div><b>루크</b> (1st Adv. II): 통제의 숲 I 최상층의 독성 꽃에서 <b class="text-green-700">'독가루(Poisonous Powder)' 수집</b> <span class="inline-block bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap"><i class="fa-solid fa-dungeon"></i> 원더플러스 목초지 I 내 인스턴스</span>. 루크에게 보고.</div></li>
+                                <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-green-500 text-white font-bold flex items-center justify-center"><i class="fa-solid fa-check"></i></span><div><b>로그</b>(민첩/크리티컬) 또는 <b>닌자</b>(은신/독 공격) 중 선택. <span class="text-gray-500">+12,000 EXP</span></div></li>
+                            </ol>
+                        </div>
+
+                        <!-- 스카우트 -->
+                        <div class="rounded-2xl overflow-hidden border-2 border-emerald-300 shadow-lg bg-white">
+                            <div class="flex items-center gap-4 p-4 bg-gradient-to-r from-emerald-600 to-teal-400">
+                                <img src="classe_scout.png" alt="Scout" class="w-20 h-28 object-cover object-top rounded-xl border-2 border-white/80 shadow-md bg-emerald-900">
+                                <div class="text-white">
+                                    <p class="text-2xl font-bold drop-shadow">스카우트 (Scout)</p>
+                                    <p class="text-sm font-semibold text-emerald-100">전직: <span class="bg-white/25 px-2 rounded">아처(Archer)</span> 또는 <span class="bg-white/25 px-2 rounded">거너(Gunner)</span></p>
+                                    <p class="text-xs mt-1 text-white/90"><i class="fa-solid fa-scroll"></i> 퀘스트 명: <b>"1st Adv. I: Scout" → "1st Adv. II: Scout"</b></p>
+                                    <p class="text-xs text-white/90"><i class="fa-solid fa-user"></i> 시작 NPC: <b>오토맨(Automan)</b> — 프란시스 마을</p>
+                                </div>
+                            </div>
+                            <ol class="p-4 space-y-3 text-sm">
+                                <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-emerald-500 text-white font-bold flex items-center justify-center">1</span><div><b>오토맨</b> → <b>야자수 공원 I(Palm Tree Park I)</b>의 NPC <b>울프(Wolf)</b>에게 이동.</div></li>
+                                <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-emerald-500 text-white font-bold flex items-center justify-center">2</span><div><b>울프</b> (1st Adv. II): 팜 비치에서 <b class="text-red-600">'아프로 춥스(Afro Chups)' 10마리 처치</b> — <b class="text-orange-600"><i class="fa-regular fa-clock"></i> 8분 제한 시간!</b> 울프에게 보고.</div></li>
+                                <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-green-500 text-white font-bold flex items-center justify-center"><i class="fa-solid fa-check"></i></span><div><b>아처</b>(활/원거리 정밀 사격) 또는 <b>거너</b>(총기류/범위 화력) 중 선택. <span class="text-gray-500">+13,000 EXP</span></div></li>
+                            </ol>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- ===== 2차 전직 가이드 (80레벨) ===== -->
+                <div class="mt-10 pt-8 border-t-2 border-dashed border-blue-200">
+                    <h3 class="text-2xl font-bold text-blue-900 mb-2 flex items-center gap-2"><i class="fa-solid fa-dragon text-purple-600"></i> 직업 변경 — 2차 전직 가이드 (80레벨)</h3>
+                    <p class="text-gray-700 mb-3">80레벨에는 2차 전직(퀘스트 시리즈 <b>"Faithful Road"</b>)이 시작됩니다. 2차 전직은 <b>선택지가 없으며</b>, 1차 특화 직업이 각 상위 직업으로 승급합니다:</p>
+                    <div class="flex flex-wrap items-center gap-2 text-sm font-semibold mb-4">
+                        <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full"><i class="fa-solid fa-1"></i> NPC <b>로렌(Lauren)</b>과 대화</span><i class="fa-solid fa-arrow-right text-gray-400"></i>
+                        <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full"><i class="fa-solid fa-2"></i> 전직 <b>트레이너</b>에게 이동</span><i class="fa-solid fa-arrow-right text-gray-400"></i>
+                        <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full"><i class="fa-solid fa-3"></i> <b>사냥 및 재료 수집</b> 완료</span><i class="fa-solid fa-arrow-right text-gray-400"></i>
+                        <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full"><i class="fa-solid fa-gem"></i> <b>잠재력의 돌(Stone of Potential)</b>을 로렌에게 전달</span>
+                    </div>
+                    <div class="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-3 text-sm text-gray-800 mb-5">
+                        <i class="fa-solid fa-triangle-exclamation text-yellow-600"></i> <b>필수 전제 조건:</b> 퀘스트를 시작하기 전 <b>모든 스킬 포인트를 소모</b>해야 합니다(2차 직업 스킬 마스터 필수). 그렇지 않으면 로렌이 퀘스트를 주지 않습니다. 3번째 단계에서는 <b>대량의 제작 재료</b>(주괴, 보석, 원석, 방독면, 메가 포션)가 요구됩니다.
+                    </div>
+
+                    <div class="grid md:grid-cols-2 gap-4">
+
+                        <!-- 워리어 -> 버서커 -->
+                        <div class="rounded-xl overflow-hidden border-2 border-sky-300 bg-white shadow">
+                            <div class="flex items-center gap-3 p-3 bg-gradient-to-r from-sky-600 to-sky-400 text-white">
+                                <img src="classe_esp.png" class="w-12 h-16 object-cover object-top rounded-lg border border-white/70 bg-sky-900" alt="">
+                                <div><p class="font-bold text-lg leading-tight">워리어(Warrior) <i class="fa-solid fa-arrow-right text-xs"></i> 버서커(Berserker)</p><p class="text-xs text-sky-100">트레이너: <b>제럴드(Zerald)</b> (원더플러스 주유소)</p></div>
+                            </div>
+                            <div class="p-3 text-sm space-y-1">
+                                <p><i class="fa-solid fa-scroll text-blue-600"></i> <b>퀘스트 명:</b> "Faithful Road: Warrior"</p>
+                                <p><i class="fa-solid fa-user text-blue-600"></i> <b>시작 NPC:</b> 로렌(Lauren) — 헬렌 사무소</p>
+                                <p><i class="fa-solid fa-crosshairs text-red-500"></i> <b>사냥:</b> 워크바이저 250마리 (에버우드 목재소) · 임팩트 인큐버스 150마리 (프루네우스 발전소)</p>
+                                <p><i class="fa-solid fa-box text-amber-600"></i> <b>재료:</b> 금괴 200개, 미스릴 100개, 빛나는 돌 50개, 방독면 200개, 메가 MP 포션 200개</p>
+                            </div>
+                        </div>
+
+                        <!-- 나이트 -> 팔라딘 -->
+                        <div class="rounded-xl overflow-hidden border-2 border-sky-300 bg-white shadow">
+                            <div class="flex items-center gap-3 p-3 bg-gradient-to-r from-sky-700 to-blue-400 text-white">
+                                <img src="classe_esp.png" class="w-12 h-16 object-cover object-top rounded-lg border border-white/70 bg-sky-900" alt="">
+                                <div><p class="font-bold text-lg leading-tight">나이트(Knight) <i class="fa-solid fa-arrow-right text-xs"></i> 팔라딘(Paladin)</p><p class="text-xs text-sky-100">트레이너: <b>제럴드(Zerald)</b> (원더플러스 주유소)</p></div>
+                            </div>
+                            <div class="p-3 text-sm space-y-1">
+                                <p><i class="fa-solid fa-scroll text-blue-600"></i> <b>퀘스트 명:</b> "Faithful Road: Knight"</p>
+                                <p><i class="fa-solid fa-user text-blue-600"></i> <b>시작 NPC:</b> 로렌(Lauren) — 헬렌 사무소</p>
+                                <p><i class="fa-solid fa-crosshairs text-red-500"></i> <b>사냥:</b> 목수의 망치 60개 (에버우드 목재소 목수 처치) · 캐논 터틀의 뿔 (프루네우스 발전소)</p>
+                                <p><i class="fa-solid fa-box text-amber-600"></i> <b>재료:</b> 은괴 200개, 다이아몬드 100개, 달의 돌 50개, 방독면 200개, 메가 HP 포션 200개</p>
+                            </div>
+                        </div>
+
+                        <!-- 프리스트 -> 세인트 -->
+                        <div class="rounded-xl overflow-hidden border-2 border-purple-300 bg-white shadow">
+                            <div class="flex items-center gap-3 p-3 bg-gradient-to-r from-purple-600 to-fuchsia-400 text-white">
+                                <img src="classe_mago.png" class="w-12 h-16 object-cover object-top rounded-lg border border-white/70 bg-purple-900" alt="">
+                                <div><p class="font-bold text-lg leading-tight">프리스트(Priest) <i class="fa-solid fa-arrow-right text-xs"></i> 세인트(Saint)</p><p class="text-xs text-purple-100">트레이너: <b>카시아(Kashia)</b> (산호 해변 III)</p></div>
+                            </div>
+                            <div class="p-3 text-sm space-y-1">
+                                <p><i class="fa-solid fa-scroll text-blue-600"></i> <b>퀘스트 명:</b> "Faithful Road: Priest"</p>
+                                <p><i class="fa-solid fa-user text-blue-600"></i> <b>시작 NPC:</b> 로렌(Lauren) — 헬렌 사무소</p>
+                                <p><i class="fa-solid fa-crosshairs text-red-500"></i> <b>사냥:</b> 목수 100마리 (에버우드 목재소) · 캐논 터틀 20마리 (프루네우스 발전소)</p>
+                                <p><i class="fa-solid fa-box text-amber-600"></i> <b>재료:</b> 은괴 200개, 다이아몬드 100개, 달의 돌 50개, 방독면 200개, 메가 HP 포션 200개</p>
+                            </div>
+                        </div>
+
+                        <!-- 위저드 -> 워록 -->
+                        <div class="rounded-xl overflow-hidden border-2 border-purple-300 bg-white shadow">
+                            <div class="flex items-center gap-3 p-3 bg-gradient-to-r from-fuchsia-700 to-purple-400 text-white">
+                                <img src="classe_mago.png" class="w-12 h-16 object-cover object-top rounded-lg border border-white/70 bg-purple-900" alt="">
+                                <div><p class="font-bold text-lg leading-tight">위저드(Wizard) <i class="fa-solid fa-arrow-right text-xs"></i> 워록(Warlock)</p><p class="text-xs text-purple-100">트레이너: <b>카시아(Kashia)</b> (산호 해변 III)</p></div>
+                            </div>
+                            <div class="p-3 text-sm space-y-1">
+                                <p><i class="fa-solid fa-scroll text-blue-600"></i> <b>퀘스트 명:</b> "Faithful Road: Wizard"</p>
+                                <p><i class="fa-solid fa-user text-blue-600"></i> <b>시작 NPC:</b> 로렌(Lauren) — 헬렌 사무소</p>
+                                <p><i class="fa-solid fa-crosshairs text-red-500"></i> <b>사냥:</b> 임팩트 인큐버스 120마리 (발전소) · 아큐버스 250마리 (낙파 늪지 IV–VI)</p>
+                                <p><i class="fa-solid fa-box text-amber-600"></i> <b>재료:</b> 금괴 200개, 루비 100개, 태양의 돌 50개, 방독면 200개, 메가 MP 포션 200개</p>
+                            </div>
+                        </div>
+
+                        <!-- 로그 -> 네이브 -->
+                        <div class="rounded-xl overflow-hidden border-2 border-rose-300 bg-white shadow">
+                            <div class="flex items-center gap-3 p-3 bg-gradient-to-r from-rose-700 to-rose-400 text-white">
+                                <img src="classe_ladrao.png" class="w-12 h-16 object-cover object-top rounded-lg border border-white/70 bg-rose-900" alt="">
+                                <div><p class="font-bold text-lg leading-tight">로그(Rogue) <i class="fa-solid fa-arrow-right text-xs"></i> 네이브(Knave)</p><p class="text-xs text-rose-100">트레이너: <b>루크(Luke)</b> (원더플러스 옥상)</p></div>
+                            </div>
+                            <div class="p-3 text-sm space-y-1">
+                                <p><i class="fa-solid fa-scroll text-blue-600"></i> <b>퀘스트 명:</b> "Faithful Road: Rogue"</p>
+                                <p><i class="fa-solid fa-user text-blue-600"></i> <b>시작 NPC:</b> 로렌(Lauren) — 헬렌 사무소</p>
+                                <p><i class="fa-solid fa-crosshairs text-red-500"></i> <b>임무:</b> 임팩트 인큐버스의 뿔 50개 (발전소) · 라무펠 고원 야프쿤 캠프의 <b>야프(Yaf)</b>와 대화</p>
+                                <p><i class="fa-solid fa-box text-amber-600"></i> <b>재료:</b> 금괴 200개, 철괴 100개, 태양의 돌 50개, 방독면 200개, 메가 MP 포션 200개</p>
+                            </div>
+                        </div>
+
+                        <!-- 닌자 -> 어쌔신 -->
+                        <div class="rounded-xl overflow-hidden border-2 border-rose-300 bg-white shadow">
+                            <div class="flex items-center gap-3 p-3 bg-gradient-to-r from-rose-900 to-rose-500 text-white">
+                                <img src="classe_ladrao.png" class="w-12 h-16 object-cover object-top rounded-lg border border-white/70 bg-rose-900" alt="">
+                                <div><p class="font-bold text-lg leading-tight">닌자(Ninja) <i class="fa-solid fa-arrow-right text-xs"></i> 어쌔신(Assassin)</p><p class="text-xs text-rose-100">트레이너: <b>루크(Luke)</b> (원더플러스 옥상)</p></div>
+                            </div>
+                            <div class="p-3 text-sm space-y-1">
+                                <p><i class="fa-solid fa-scroll text-blue-600"></i> <b>퀘스트 명:</b> "Faithful Road: Ninja"</p>
+                                <p><i class="fa-solid fa-user text-blue-600"></i> <b>시작 NPC:</b> 로렌(Lauren) — 헬렌 사무소</p>
+                                <p><i class="fa-solid fa-crosshairs text-red-500"></i> <b>임무:</b> 해머맨 30마리 (베르모스 비행선 III) · 라무펠 고원의 <b>야프(Yaf)</b>와 대화</p>
+                                <p><i class="fa-solid fa-box text-amber-600"></i> <b>재료:</b> 은괴 200개, 에메랄드 100개, 어둠의 돌 50개, 방독면 200개, 메가 HP 포션 200개</p>
+                            </div>
+                        </div>
+
+                        <!-- 아처 -> 레인저 -->
+                        <div class="rounded-xl overflow-hidden border-2 border-emerald-300 bg-white shadow">
+                            <div class="flex items-center gap-3 p-3 bg-gradient-to-r from-emerald-600 to-teal-400 text-white">
+                                <img src="classe_scout.png" class="w-12 h-16 object-cover object-top rounded-lg border border-white/70 bg-emerald-900" alt="">
+                                <div><p class="font-bold text-lg leading-tight">아처(Archer) <i class="fa-solid fa-arrow-right text-xs"></i> 레인저(Ranger)</p><p class="text-xs text-emerald-100">트레이너: <b>울프(Wolf)</b> (야자수 공원 I)</p></div>
+                            </div>
+                            <div class="p-3 text-sm space-y-1">
+                                <p><i class="fa-solid fa-scroll text-blue-600"></i> <b>퀘스트 명:</b> "Faithful Road: Archer"</p>
+                                <p><i class="fa-solid fa-user text-blue-600"></i> <b>시작 NPC:</b> 로렌(Lauren) — 헬렌 사무소</p>
+                                <p><i class="fa-solid fa-crosshairs text-red-500"></i> <b>사냥:</b> 커팅머신 200마리 (목재소) · 아이언 거너 100마리 (낙파 늪지 폐기장 II–III)</p>
+                                <p><i class="fa-solid fa-box text-amber-600"></i> <b>재료:</b> 은괴 200개, 에메랄드 100개, 빛나는 돌 50개, 방독면 200개, 메가 HP 포션 200개</p>
+                            </div>
+                        </div>
+
+                        <!-- 거너 -> 건슬링거 -->
+                        <div class="rounded-xl overflow-hidden border-2 border-emerald-300 bg-white shadow">
+                            <div class="flex items-center gap-3 p-3 bg-gradient-to-r from-teal-700 to-emerald-400 text-white">
+                                <img src="classe_scout.png" class="w-12 h-16 object-cover object-top rounded-lg border border-white/70 bg-emerald-900" alt="">
+                                <div><p class="font-bold text-lg leading-tight">거너(Gunner) <i class="fa-solid fa-arrow-right text-xs"></i> 건슬링거(Gunslinger)</p><p class="text-xs text-emerald-100">트레이너: <b>울프(Wolf)</b> (야자수 공원 I)</p></div>
+                            </div>
+                            <div class="p-3 text-sm space-y-1">
+                                <p><i class="fa-solid fa-scroll text-blue-600"></i> <b>퀘스트 명:</b> "Faithful Road: Gunner"</p>
+                                <p><i class="fa-solid fa-user text-blue-600"></i> <b>시작 NPC:</b> 로렌(Lauren) — 헬렌 사무소</p>
+                                <p><i class="fa-solid fa-crosshairs text-red-500"></i> <b>사냥:</b> 데빌트론 60마리 (낙파 늪지) · 캐논 터틀의 뿔 (발전소)</p>
+                                <p><i class="fa-solid fa-box text-amber-600"></i> <b>재료:</b> 금괴 200개, 미스릴 100개, 어둠의 돌 50개, 방독면 200개, 메가 MP 포션 200개</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 중요 안내 배너 -->
+                    <div class="mt-6 bg-amber-50 border-2 border-amber-300 rounded-xl p-4 flex items-center gap-3.5 shadow-sm text-gray-800">
+                        <div class="shrink-0 w-10 h-10 bg-amber-400 text-amber-950 rounded-lg flex items-center justify-center text-xl shadow-sm">
+                            <i class="fa-solid fa-gem"></i>
+                        </div>
+                        <div class="text-sm md:text-base leading-relaxed">
+                            <span class="font-bold text-amber-950"><i class="fa-solid fa-circle-exclamation text-amber-600"></i> 핵심 안내:</span>
+                            모든 직업의 2차 전직 최종 단계는 <b>잠재력의 돌(Stone of Potential)</b>을 <b>로렌</b>에게 전달하는 것입니다. 향후 진행되는 3차 및 4차 상위 전직 또한 동일한 직업 계열 트리를 계승합니다!
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 푸터 -->
+    <footer class="container mx-auto px-4 mt-12">
+        <div class="panel-wk p-6 text-center">
+            <img src="logo.png" alt="" class="mx-auto h-16 object-contain mb-3 opacity-90">
+            <p class="font-bold text-blue-900">Wonder Classic — 팬 커뮤니티 및 백과사전</p>
+            <p class="text-sm text-gray-600 mt-1">고전 2D MMORPG 팬들을 위한 비영리 기록 보존 프로젝트.</p>
+            <div class="flex justify-center gap-4 mt-4 text-2xl text-blue-600">
+                <a href="https://discord.gg/dSzYmkKVE" target="_blank" class="hover:text-blue-800 transition" title="Discord"><i class="fa-brands fa-discord"></i></a>
+                <a href="#" class="hover:text-blue-800 transition" title="YouTube"><i class="fa-brands fa-youtube"></i></a>
+                <a href="#" class="hover:text-blue-800 transition" title="GitHub"><i class="fa-brands fa-github"></i></a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

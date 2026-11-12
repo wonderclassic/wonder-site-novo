@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unsere Community & Discord — Wonder Classic</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+
+        <!-- Detecção e Redirecionamento Automático de Idioma (KO / DE / PT / Padrão EN) -->
+    <script>
+        (function() {
+            try {
+                var parts = window.location.pathname.split('/').filter(Boolean);
+                var cleanPath = parts.length ? parts[parts.length - 1] : 'index';
+                var m = cleanPath.match(/^(index|guia|craft|central|download|sobre)(?:-(en|de|ko))?(?:\.html)?$/i);
+                var base = m ? m[1].toLowerCase() : 'index';
+                if (base === 'download') base = 'central';
+                var currentLang = (m && m[2]) ? m[2].toLowerCase() : 'pt';
+
+                function goTo(targetLang) {
+                    if (!targetLang || targetLang === currentLang) return;
+                    try { localStorage.setItem('wk_lang', targetLang); } catch(e) {}
+                    var isClean = (window.location.protocol.indexOf('http') === 0) && (window.location.pathname.indexOf('.html') === -1);
+                    var targetFile;
+                    if (isClean) {
+                        targetFile = (targetLang === 'pt') ? (base === 'index' ? './' : base) : (base + '-' + targetLang);
+                    } else {
+                        targetFile = (targetLang === 'pt') ? (base + '.html') : (base + '-' + targetLang + '.html');
+                    }
+                    window.location.replace(targetFile);
+                }
+
+                // 1. Se o visitante acessou diretamente uma URL já localizada (-de, -ko, -en), fixa a preferência e não redireciona
+                if (currentLang !== 'pt') {
+                    try { localStorage.setItem('wk_lang', currentLang); } catch(e) {}
+                    return;
+                }
+
+                // 2. Se o visitante já tem preferência explícita salva (ex: clicou antes em EN, DE, KO ou PT)
+                var pref = null;
+                try { pref = localStorage.getItem('wk_lang'); } catch(e) {}
+                if (pref === 'pt' || pref === 'en' || pref === 'de' || pref === 'ko') {
+                    goTo(pref);
+                    return;
+                }
+
+                // 3. Detecção pelo idioma do navegador (navigator.languages)
+                var langs = navigator.languages || [navigator.language || navigator.userLanguage || ''];
+                var browserLang = null;
+                for (var i = 0; i < langs.length; i++) {
+                    var l = (langs[i] || '').toLowerCase();
+                    if (l.indexOf('ko') === 0) { browserLang = 'ko'; break; }
+                    if (l.indexOf('de') === 0) { browserLang = 'de'; break; }
+                    if (l.indexOf('pt') === 0) { browserLang = 'pt'; break; }
+                    if (l.indexOf('en') === 0) { browserLang = 'en'; break; }
+                }
+
+                // Se o navegador for coreano ou alemão, redireciona de imediato
+                if (browserLang === 'ko' || browserLang === 'de') {
+                    goTo(browserLang);
+                    return;
+                }
+
+                // 4. Detecção Geográfica por IP (Cloudflare /cdn-cgi/trace; sem ele, idioma do navegador)
+                var resolved = false;
+                function applyCountry(countryCode) {
+                    if (resolved) return;
+                    resolved = true;
+                    var c = (countryCode || '').toUpperCase();
+                    if (c === 'KR') {
+                        goTo('ko');
+                    } else if (c === 'DE' || c === 'AT' || c === 'CH') {
+                        goTo('de');
+                    } else if (c === 'BR' || c === 'PT') {
+                        goTo('pt');
+                    } else {
+                        // Qualquer outro país / na dúvida -> Padrão em Inglês
+                        goTo('en');
+                    }
+                }
+
+                // Tentativa 1: Cloudflare trace local (/cdn-cgi/trace)
+                fetch('/cdn-cgi/trace', { cache: 'no-store' })
+                    .then(function(res) { return res.text(); })
+                    .then(function(text) {
+                        var match = text.match(/loc=([A-Z]{2})/);
+                        if (match && match[1]) {
+                            applyCountry(match[1]);
+                        } else {
+                            fallbackGeo();
+                        }
+                    })
+                    .catch(function() {
+                        fallbackGeo();
+                    });
+
+                // Tentativa 2: idioma do navegador
+                function fallbackGeo() {
+                    // Sem serviço de GeoIP de terceiros (não manda o IP do visitante para fora): vale o idioma do navegador
+                    if (resolved) return;
+                    resolved = true;
+                    goTo(browserLang || 'en');
+                }
+            } catch(e) {}
+        })();
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Fredoka', 'sans-serif'] } } } };
+    </script>
+
+    <style>
+        :root {
+            --wk-azul: #2f6fd6;
+            --wk-azul-esc: #1e3a8a;
+            --wk-amarelo: #fde047;
+            --wk-laranja: #f97316;
+        }
+        html { scroll-behavior: smooth; font-size: 17.5px; }
+        body {
+            background-color: #5ab1ee;
+            background-image: url('fundo.jpg');
+            background-size: cover;
+            background-attachment: fixed;
+            background-position: top center;
+        }
+        body::before {
+            content: ""; position: fixed; inset: 0; z-index: -1;
+            background: linear-gradient(180deg, rgba(20,40,90,0.25) 0%, rgba(20,40,90,0.55) 60%, rgba(10,20,50,0.8) 100%);
+        }
+
+        .panel-wk {
+            background-color: rgba(255, 255, 255, 0.97);
+            border: 4px solid var(--wk-amarelo);
+            border-radius: 1.25rem;
+            box-shadow: inset 0 0 15px rgba(255,255,255,0.9), 0 10px 30px rgba(0,0,0,0.45);
+        }
+        .header-bg { background: linear-gradient(180deg, #1e3a8a 0%, #3b82f6 100%); }
+
+        .btn-wk {
+            transition: transform .1s, filter .1s;
+            border-bottom-width: 5px;
+            border-color: rgba(0,0,0,0.25);
+            text-shadow: 1px 1px 0px rgba(0,0,0,0.4);
+        }
+        .btn-wk:hover { filter: brightness(1.08); }
+        .btn-wk:active { transform: translateY(5px); border-bottom-width: 0; margin-bottom: 5px; }
+
+        .link-nav { position: relative; }
+        .link-nav::after {
+            content: ""; position: absolute; left: 0; bottom: -6px; height: 3px; width: 0;
+            background: var(--wk-amarelo); border-radius: 3px; transition: width .2s;
+        }
+        .link-nav:hover::after { width: 100%; }
+
+        .online-dot { box-shadow: 0 0 0 0 rgba(34,197,94,0.7); animation: pulso 1.8s infinite; }
+        @keyframes pulso { 0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.7); } 70% { box-shadow: 0 0 0 10px rgba(34,197,94,0); } 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); } }
+    </style>
+</head>
+<body class="antialiased text-gray-800 min-h-screen pb-12">
+
+    <!-- Navbar -->
+    <header class="header-bg border-b-4 border-yellow-400 sticky top-0 z-50 shadow-xl">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center h-20">
+                <a href="index-de.html" class="flex items-center gap-3">
+                    <img src="logo.png" alt="Wonder Classic" class="h-16 w-auto drop-shadow-md">
+                    <span class="hidden sm:block text-2xl font-bold text-yellow-300 drop-shadow">Wonder Classic</span>
+                </a>
+
+                <nav class="hidden md:flex gap-7 font-bold text-blue-50">
+                    <a href="index-de.html" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-star"></i> Startseite</a>
+                    <a href="index-de.html#noticias" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-newspaper"></i> Neuigkeiten</a>
+                    <a href="guia-de.html" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-scroll"></i> Quest-Guide</a>
+                    <a href="craft-de.html" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-hammer"></i> Herstellung</a>
+                    <a href="central-de.html" class="link-nav hover:text-yellow-300 transition"><i class="fa-brands fa-discord"></i> Community</a>
+                    <a href="sobre-de.html" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-heart"></i> Über uns</a>
+                    <a href="index-de.html#ranking" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-trophy"></i> Rangliste</a>
+                </nav>
+
+                <div class="flex items-center gap-1 mr-1">
+                    <a href="central.html" onclick="localStorage.setItem('wk_lang','pt')" class="px-2.5 py-1 rounded-lg font-bold text-sm bg-white/15 text-blue-50 hover:bg-white/30 transition">PT</a>
+                    <a href="central-en.html" onclick="localStorage.setItem('wk_lang','en')" class="px-2.5 py-1 rounded-lg font-bold text-sm bg-white/15 text-blue-50 hover:bg-white/30 transition">EN</a>
+                    <a href="central-de.html" onclick="localStorage.setItem('wk_lang','de')" class="px-2.5 py-1 rounded-lg font-bold text-sm bg-yellow-400 text-blue-900 transition">DE</a>
+                    <a href="central-ko.html" onclick="localStorage.setItem('wk_lang','ko')" class="px-2.5 py-1 rounded-lg font-bold text-sm bg-white/15 text-blue-50 hover:bg-white/30 transition">KO</a>
+                </div>
+                <a href="https://discord.gg/dSzYmkKVE" target="_blank" rel="noopener noreferrer" class="px-5 py-2 bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold rounded-xl btn-wk flex items-center gap-2 shadow">
+                    <i class="fa-brands fa-discord"></i> <span class="hidden sm:inline">Discord</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Header -->
+    <section class="container mx-auto px-4 mt-10">
+        <div class="panel-wk overflow-hidden">
+            <div class="h-44 flex items-end relative overflow-hidden border-b-4 border-yellow-400">
+                <img src="fundo.jpg" class="absolute inset-0 w-full h-full object-cover" alt="">
+                <div class="absolute inset-0 bg-gradient-to-t from-blue-900/95 via-blue-900/50 to-transparent"></div>
+                <div class="relative z-10 p-6">
+                    <span class="inline-flex items-center gap-2 px-3 py-1 bg-yellow-400 text-blue-950 font-bold text-xs rounded-full uppercase shadow">
+                        <i class="fa-solid fa-users"></i> Unsere Community
+                    </span>
+                    <h1 class="text-3xl sm:text-4xl font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,1)] mt-2"><i class="fa-brands fa-discord text-yellow-300"></i> Unsere Community & Erste Schritte</h1>
+                </div>
+            </div>
+
+                        <!-- Content -->
+            <div class="p-6 sm:p-8 bg-white">
+                
+                <!-- Status -->
+                <div class="flex flex-wrap items-center justify-between gap-4 p-5 mb-8 bg-indigo-50 border-2 border-indigo-200 rounded-2xl">
+                    <div class="flex items-center gap-3">
+                        <span class="online-dot inline-block w-4 h-4 rounded-full bg-green-500"></span>
+                        <div>
+                            <h3 class="font-bold text-blue-950 text-lg">Aktive Discord-Community</h3>
+                            <p class="text-sm text-gray-600">Alle Ankündigungen, Neuigkeiten, Spieler-Support und Events finden exklusiv auf unserem Discord-Server statt.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <a href="https://discord.gg/dSzYmkKVE" target="_blank" rel="noopener noreferrer" class="text-sm font-bold text-white bg-[#5865F2] hover:bg-[#4752c4] px-5 py-2.5 rounded-xl shadow transition flex items-center gap-2">
+                            <i class="fa-brands fa-discord"></i> Discord beitreten
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Discord Hub -->
+                <div class="mb-12" id="comunidade">
+                    <h2 class="text-2xl font-bold text-blue-900 border-b-2 border-yellow-400 pb-2 mb-6 flex items-center gap-2">
+                        <i class="fa-brands fa-discord text-[#5865F2]"></i> Community-Portal
+                    </h2>
+
+                    <div class="bg-gradient-to-br from-[#5865F2]/10 via-white to-blue-50 border-3 border-[#5865F2] rounded-3xl p-8 sm:p-10 shadow-xl text-center relative overflow-hidden">
+                        <div class="max-w-2xl mx-auto space-y-5">
+                            <div class="w-20 h-20 bg-[#5865F2] text-white text-4xl rounded-3xl flex items-center justify-center mx-auto shadow-lg shadow-[#5865F2]/30">
+                                <i class="fa-brands fa-discord"></i>
+                            </div>
+                            
+                            <h3 class="text-2xl sm:text-3xl font-extrabold text-blue-950">
+                                Tritt unserem Discord-Server bei
+                            </h3>
+                            
+                            <p class="text-gray-700 text-base sm:text-lg leading-relaxed">
+                                Unsere gesamte internationale Community, Community-Updates, Events, Spiel-Leitfäden und hilfsbereiter Support sind an einem zentralen Ort gebündelt. Werde Teil davon!
+                            </p>
+
+                            <div class="pt-2">
+                                <a href="https://discord.gg/dSzYmkKVE" target="_blank" rel="noopener noreferrer" 
+                                   class="inline-flex items-center justify-center gap-3 px-8 sm:px-10 py-5 bg-[#5865F2] hover:bg-[#4752c4] text-white font-extrabold text-xl rounded-2xl btn-wk shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-0.5">
+                                    <i class="fa-brands fa-discord text-2xl"></i> Unserem Discord beitreten
+                                </a>
+                            </div>
+
+                            <div class="bg-gray-100/90 rounded-xl p-4 text-xs text-gray-600 border border-gray-200 mt-6 text-center">
+                                <i class="fa-solid fa-shield-halved text-green-600"></i> <b>Community-Portal:</b> <i>wonderclassic.com</i> fungiert als rein informatives Fan-Portal zur Vernetzung von Spielern und Liebhabern des klassischen Spiels.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Erste Schritte -->
+                <div class="mb-12" id="tutorial">
+                    <h2 class="text-2xl font-bold text-blue-900 border-b-2 border-yellow-400 pb-2 mb-6 flex items-center gap-2">
+                        <i class="fa-solid fa-compass text-green-600"></i> So machst du mit
+                    </h2>
+
+                    <div class="space-y-4">
+                        
+                        <!-- Step 1 -->
+                        <div class="flex gap-4 p-5 bg-blue-50/70 border-2 border-blue-200 rounded-2xl items-start">
+                            <div class="w-12 h-12 bg-blue-600 text-white text-xl font-bold rounded-2xl flex items-center justify-center shrink-0 shadow">1</div>
+                            <div class="flex-1">
+                                <h4 class="text-lg font-bold text-blue-950">Dem Discord-Server beitreten</h4>
+                                <p class="text-sm text-gray-700 mt-1">
+                                    Öffne <a href="https://discord.gg/dSzYmkKVE" target="_blank" class="text-blue-600 underline font-bold">discord.gg/dSzYmkKVE</a> und werde Teil unserer Community.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Step 2 -->
+                        <div class="flex gap-4 p-5 bg-blue-50/70 border-2 border-blue-200 rounded-2xl items-start">
+                            <div class="w-12 h-12 bg-blue-600 text-white text-xl font-bold rounded-2xl flex items-center justify-center shrink-0 shadow">2</div>
+                            <div class="flex-1">
+                                <h4 class="text-lg font-bold text-blue-950">Tausche dich mit Spielern aus</h4>
+                                <p class="text-sm text-gray-700 mt-1">
+                                    Triff andere Spieler, tausche Tipps aus und verpasse keine Neuigkeiten in den Community-Kanälen.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Step 3 -->
+                        <div class="flex gap-4 p-5 bg-emerald-50 border-2 border-emerald-300 rounded-2xl items-start">
+                            <div class="w-12 h-12 bg-green-500 text-white text-xl font-bold rounded-2xl flex items-center justify-center shrink-0 shadow"><i class="fa-solid fa-headset"></i></div>
+                            <div class="flex-1">
+                                <h4 class="text-lg font-bold text-emerald-950">Support und Hilfe</h4>
+                                <p class="text-sm text-gray-700 mt-1">
+                                    Bei Fragen steht dir unser Moderations-Team im Discord jederzeit gerne zur Seite.
+                                </p>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Fußzeile -->
+    <footer class="container mx-auto px-4 mt-12">
+        <div class="panel-wk p-6 text-center">
+            <img src="logo.png" alt="" class="mx-auto h-16 object-contain mb-3 opacity-90">
+            <p class="font-bold text-blue-900">Wonder Classic — Community-Portal &amp; Enzyklopädie</p>
+            <p class="text-sm text-gray-600 mt-1">Gemeinnütziges Fan-Projekt für klassische 2D-MMORPGs.</p>
+            <div class="flex justify-center gap-4 mt-4 text-2xl text-blue-600">
+                <a href="https://discord.gg/dSzYmkKVE" target="_blank" class="hover:text-blue-800 transition" title="Discord"><i class="fa-brands fa-discord"></i></a>
+                <a href="#" class="hover:text-blue-800 transition" title="YouTube"><i class="fa-brands fa-youtube"></i></a>
+                <a href="#" class="hover:text-blue-800 transition" title="GitHub"><i class="fa-brands fa-github"></i></a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

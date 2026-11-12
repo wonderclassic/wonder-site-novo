@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Herstellungs-Guide — Wonder Classic Online</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+
+        <!-- Detecção e Redirecionamento Automático de Idioma (KO / DE / PT / Padrão EN) -->
+    <script>
+        (function() {
+            try {
+                var parts = window.location.pathname.split('/').filter(Boolean);
+                var cleanPath = parts.length ? parts[parts.length - 1] : 'index';
+                var m = cleanPath.match(/^(index|guia|craft|central|download|sobre)(?:-(en|de|ko))?(?:\.html)?$/i);
+                var base = m ? m[1].toLowerCase() : 'index';
+                if (base === 'download') base = 'central';
+                var currentLang = (m && m[2]) ? m[2].toLowerCase() : 'pt';
+
+                function goTo(targetLang) {
+                    if (!targetLang || targetLang === currentLang) return;
+                    try { localStorage.setItem('wk_lang', targetLang); } catch(e) {}
+                    var isClean = (window.location.protocol.indexOf('http') === 0) && (window.location.pathname.indexOf('.html') === -1);
+                    var targetFile;
+                    if (isClean) {
+                        targetFile = (targetLang === 'pt') ? (base === 'index' ? './' : base) : (base + '-' + targetLang);
+                    } else {
+                        targetFile = (targetLang === 'pt') ? (base + '.html') : (base + '-' + targetLang + '.html');
+                    }
+                    window.location.replace(targetFile);
+                }
+
+                // 1. Se o visitante acessou diretamente uma URL já localizada (-de, -ko, -en), fixa a preferência e não redireciona
+                if (currentLang !== 'pt') {
+                    try { localStorage.setItem('wk_lang', currentLang); } catch(e) {}
+                    return;
+                }
+
+                // 2. Se o visitante já tem preferência explícita salva (ex: clicou antes em EN, DE, KO ou PT)
+                var pref = null;
+                try { pref = localStorage.getItem('wk_lang'); } catch(e) {}
+                if (pref === 'pt' || pref === 'en' || pref === 'de' || pref === 'ko') {
+                    goTo(pref);
+                    return;
+                }
+
+                // 3. Detecção pelo idioma do navegador (navigator.languages)
+                var langs = navigator.languages || [navigator.language || navigator.userLanguage || ''];
+                var browserLang = null;
+                for (var i = 0; i < langs.length; i++) {
+                    var l = (langs[i] || '').toLowerCase();
+                    if (l.indexOf('ko') === 0) { browserLang = 'ko'; break; }
+                    if (l.indexOf('de') === 0) { browserLang = 'de'; break; }
+                    if (l.indexOf('pt') === 0) { browserLang = 'pt'; break; }
+                    if (l.indexOf('en') === 0) { browserLang = 'en'; break; }
+                }
+
+                // Se o navegador for coreano ou alemão, redireciona de imediato
+                if (browserLang === 'ko' || browserLang === 'de') {
+                    goTo(browserLang);
+                    return;
+                }
+
+                // 4. Detecção Geográfica por IP (Cloudflare /cdn-cgi/trace; sem ele, idioma do navegador)
+                var resolved = false;
+                function applyCountry(countryCode) {
+                    if (resolved) return;
+                    resolved = true;
+                    var c = (countryCode || '').toUpperCase();
+                    if (c === 'KR') {
+                        goTo('ko');
+                    } else if (c === 'DE' || c === 'AT' || c === 'CH') {
+                        goTo('de');
+                    } else if (c === 'BR' || c === 'PT') {
+                        goTo('pt');
+                    } else {
+                        // Qualquer outro país / na dúvida -> Padrão em Inglês
+                        goTo('en');
+                    }
+                }
+
+                // Tentativa 1: Cloudflare trace local (/cdn-cgi/trace)
+                fetch('/cdn-cgi/trace', { cache: 'no-store' })
+                    .then(function(res) { return res.text(); })
+                    .then(function(text) {
+                        var match = text.match(/loc=([A-Z]{2})/);
+                        if (match && match[1]) {
+                            applyCountry(match[1]);
+                        } else {
+                            fallbackGeo();
+                        }
+                    })
+                    .catch(function() {
+                        fallbackGeo();
+                    });
+
+                // Tentativa 2: idioma do navegador
+                function fallbackGeo() {
+                    // Sem serviço de GeoIP de terceiros (não manda o IP do visitante para fora): vale o idioma do navegador
+                    if (resolved) return;
+                    resolved = true;
+                    goTo(browserLang || 'en');
+                }
+            } catch(e) {}
+        })();
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Fredoka', 'sans-serif'] } } } };
+    </script>
+
+    <style>
+        :root {
+            --wk-azul: #2f6fd6;
+            --wk-azul-esc: #1e3a8a;
+            --wk-amarelo: #fde047;
+            --wk-laranja: #f97316;
+        }
+        html { scroll-behavior: smooth; font-size: 17.5px; }
+        body {
+            background-color: #5ab1ee;
+            background-image: url('fundo.jpg');
+            background-size: cover;
+            background-attachment: fixed;
+            background-position: top center;
+        }
+        body::before {
+            content: ""; position: fixed; inset: 0; z-index: -1;
+            background: linear-gradient(180deg, rgba(20,40,90,0.25) 0%, rgba(20,40,90,0.55) 60%, rgba(10,20,50,0.8) 100%);
+        }
+
+        .panel-wk {
+            background-color: rgba(255, 255, 255, 0.95);
+            border: 4px solid var(--wk-amarelo);
+            border-radius: 1rem;
+            box-shadow: inset 0 0 15px rgba(255,255,255,0.9), 0 10px 30px rgba(0,0,0,0.45);
+        }
+        .header-bg { background: linear-gradient(180deg, #1e3a8a 0%, #3b82f6 100%); }
+
+        .btn-wk {
+            transition: transform .1s, filter .1s;
+            border-bottom-width: 5px;
+            border-color: rgba(0,0,0,0.25);
+            text-shadow: 1px 1px 0px rgba(0,0,0,0.4);
+        }
+        .btn-wk:hover { filter: brightness(1.08); }
+        .btn-wk:active { transform: translateY(5px); border-bottom-width: 0; margin-bottom: 5px; }
+
+        .tab-active { background-color: #3b82f6; color: #fff; border: 3px solid var(--wk-amarelo); border-bottom: none; }
+        .tab-inactive { background-color: rgba(255,255,255,0.7); color: #3b82f6; border: 3px solid transparent; border-bottom: 3px solid var(--wk-amarelo); }
+        .tab-inactive:hover { background-color: rgba(255,255,255,0.95); }
+
+        .link-nav { position: relative; }
+        .link-nav::after {
+            content: ""; position: absolute; left: 0; bottom: -6px; height: 3px; width: 0;
+            background: var(--wk-amarelo); border-radius: 3px; transition: width .2s;
+        }
+        .link-nav:hover::after { width: 100%; }
+    </style>
+</head>
+<body class="antialiased text-gray-800 min-h-screen pb-12">
+
+    <!-- Navbar -->
+    <header class="header-bg border-b-4 border-yellow-400 sticky top-0 z-50 shadow-xl">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center h-20">
+                <a href="index-de.html" class="flex items-center gap-3">
+                    <img src="logo.png" alt="Wonder Classic" class="h-16 w-auto drop-shadow-md">
+                    <span class="hidden sm:block text-2xl font-bold text-yellow-300 drop-shadow">Wonder Classic</span>
+                </a>
+
+                <nav class="hidden md:flex gap-7 font-bold text-blue-50">
+                    <a href="index-de.html" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-star"></i> Startseite</a>
+                    <a href="index-de.html#noticias" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-newspaper"></i> Neuigkeiten</a>
+                    <a href="guia-de.html" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-scroll"></i> Quest-Guide</a>
+                    <a href="craft-de.html" class="link-nav text-yellow-300 transition"><i class="fa-solid fa-hammer"></i> Herstellung</a>
+                    <a href="central-de.html" class="link-nav hover:text-yellow-300 transition"><i class="fa-brands fa-discord"></i> Community</a>
+                    <a href="sobre-de.html" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-heart"></i> Über uns</a>
+                    <a href="index-de.html#ranking" class="link-nav hover:text-yellow-300 transition"><i class="fa-solid fa-trophy"></i> Rangliste</a>
+                </nav>
+
+                <div class="flex items-center gap-1 mr-1">
+                    <a href="craft.html" onclick="localStorage.setItem('wk_lang','pt')" class="px-2.5 py-1 rounded-lg font-bold text-sm bg-white/15 text-blue-50 hover:bg-white/30 transition">PT</a>
+                    <a href="craft-en.html" onclick="localStorage.setItem('wk_lang','en')" class="px-2.5 py-1 rounded-lg font-bold text-sm bg-white/15 text-blue-50 hover:bg-white/30 transition">EN</a>
+                    <a href="craft-de.html" onclick="localStorage.setItem('wk_lang','de')" class="px-2.5 py-1 rounded-lg font-bold text-sm bg-yellow-400 text-blue-900 transition">DE</a>
+                    <a href="craft-ko.html" onclick="localStorage.setItem('wk_lang','ko')" class="px-2.5 py-1 rounded-lg font-bold text-sm bg-white/15 text-blue-50 hover:bg-white/30 transition">KO</a>
+                </div>
+                <a href="https://discord.gg/dSzYmkKVE" target="_blank" rel="noopener noreferrer" class="px-5 py-2 bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold rounded-xl btn-wk flex items-center gap-2 shadow"><i class="fa-brands fa-discord"></i> <span class="hidden sm:inline">Discord</span></a>
+            </div>
+        </div>
+    </header>
+
+    <section id="craft" class="container mx-auto px-4 mt-12">
+        <div class="panel-wk overflow-hidden">
+            <div class="h-40 flex items-end relative overflow-hidden border-b-4 border-yellow-400">
+                <img src="fundo.jpg" class="absolute inset-0 w-full h-full object-cover" alt="">
+                <div class="absolute inset-0 bg-gradient-to-t from-amber-900/95 via-amber-900/40 to-transparent"></div>
+                <h2 class="text-3xl font-bold text-white relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,1)] p-5">
+                    <i class="fa-solid fa-hammer text-yellow-300"></i> Herstellungs-Guide — Deine 1. Waffe & Rüstung
+                </h2>
+            </div>
+
+            <div class="p-6 bg-white">
+                <p class="text-gray-700 mb-6">In Wonder Classic kannst du deine eigenen Waffen, Rüstungen und Gegenstände <b>herstellen (craften)</b> — viele davon <b>kann man nicht im Laden kaufen</b>. Alles dreht sich um die <b class="text-amber-700">Mischer</b> (die Werkbänke im Spiel). Dieser Leitfaden führt dich von Grund auf durch das System: wie du es freischaltest, was jeder Mischer bewirkt und wie du dein erstes Ausrüstungsteil fertigstellst.</p>
+
+                <!-- Schritt 1: Freischaltung -->
+                <h3 class="text-2xl font-bold text-blue-900 mb-3 flex items-center gap-2"><i class="fa-solid fa-unlock-keyhole text-green-500"></i> Schritt 1 — Herstellung freischalten (Stufe 30)</h3>
+                <div class="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 mb-8 flex gap-4 items-start">
+                    <div class="shrink-0 w-12 h-12 rounded-full bg-amber-500 text-white text-2xl flex items-center justify-center shadow"><i class="fa-solid fa-flask"></i></div>
+                    <div class="text-sm text-gray-800">
+                        Sobald du <b>Stufe 30</b> erreichst, sprich mit <b class="text-amber-800">T.R.Z.</b> in <b>Francis</b> und erledige die Quest <b>"Principles of Item Crafting"</b> (Prinzipien der Gegenstandsherstellung). Am Ende schenkt er dir <b>1 Mischer deiner Wahl</b> — und hier ist der Haken: <b class="text-red-600">du darfst nur EINEN wählen</b>. Entscheide dich weise (siehe unten, was jeder Mischer herstellt).
+                    </div>
+                </div>
+
+                <!-- Die 4 Mischer -->
+                <h3 class="text-2xl font-bold text-blue-900 mb-4 flex items-center gap-2"><i class="fa-solid fa-layer-group text-purple-500"></i> Die 4 Mischer</h3>
+                <div class="grid md:grid-cols-2 gap-4 mb-4">
+                    <div class="rounded-xl border-2 border-sky-300 bg-sky-50 p-4">
+                        <p class="font-bold text-sky-900 text-lg"><i class="fa-solid fa-khanda text-sky-600"></i> Waffen-Mischer (Weapon Mixer)</p>
+                        <p class="text-sm text-gray-700">Stellt <b>Waffen</b> her (Schwerter, Äxte, Dolche, Bögen, Stäbe…).</p>
+                    </div>
+                    <div class="rounded-xl border-2 border-emerald-300 bg-emerald-50 p-4">
+                        <p class="font-bold text-emerald-900 text-lg"><i class="fa-solid fa-shield-halved text-emerald-600"></i> Rüstungs-Mischer (Armor Mixer)</p>
+                        <p class="text-sm text-gray-700">Stellt <b>Rüstungen</b> her (Oberteile, Hosen, Hüte, Schilde…).</p>
+                    </div>
+                    <div class="rounded-xl border-2 border-rose-300 bg-rose-50 p-4">
+                        <p class="font-bold text-rose-900 text-lg"><i class="fa-solid fa-hat-wizard text-rose-600"></i> Zusatzobjekt-Mischer (Supple. Item Mixer)</p>
+                        <p class="text-sm text-gray-700">Stellt <b>Pfeile, Wurfsterne, Geisterbomben und Zubehör</b> her.</p>
+                    </div>
+                    <div class="rounded-xl border-2 border-amber-300 bg-amber-50 p-4">
+                        <p class="font-bold text-amber-900 text-lg"><i class="fa-solid fa-flask-vial text-amber-600"></i> Alchemie-Mischer (Alchemy Mixer) <span class="text-xs bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full align-middle">bester Einstieg</span></p>
+                        <p class="text-sm text-gray-700">Verwandelt Rohmaterialien in die <b>Zwischenbauteile</b> (Eisenbarren, Klingenbruch, Zerrissenes Hemd…), die Waffen- und Rüstungsrezepte zwingend benötigen.</p>
+                    </div>
+                </div>
+                <div class="bg-blue-50 border-2 border-blue-200 rounded-xl p-3 text-sm text-gray-800 mb-8">
+                    <i class="fa-solid fa-lightbulb text-yellow-500"></i> <b>Warum Alchemie der Schlüssel ist:</b> Bauteile wie "Broken Blade" (Klingenbruch) und "Torn" (zerrissene Kleidungsstücke) <b>droppen von keinen Monstern und werden von keinem Händler verkauft</b> — sie entstehen ausschließlich im Alchemie-Mischer. Da jeder Spieler nur einen einzigen Mischer wählen kann, <b>tauschen Freunde oft Bauteile untereinander aus</b> (einer betreibt Alchemie, der andere baut die Waffe). T.R.Z. selbst warnt: Materialien sind <b>auf dem Markt sehr teuer</b>, selbst herstellen lohnt sich also!
+                </div>
+
+                <!-- Funktionsweise -->
+                <h3 class="text-2xl font-bold text-blue-900 mb-4 flex items-center gap-2"><i class="fa-solid fa-gears text-blue-500"></i> Wie die Herstellung funktioniert</h3>
+                <div class="grid md:grid-cols-2 gap-4 mb-8">
+                    <div class="bg-gray-50 rounded-xl p-4 border-2 border-gray-200 text-sm text-gray-700"><b class="text-blue-900"><i class="fa-solid fa-city text-blue-500"></i> Nur innerhalb einer Stadt.</b> Der Mischer lässt sich auf Jagdfeldern nicht öffnen.</div>
+                    <div class="bg-gray-50 rounded-xl p-4 border-2 border-gray-200 text-sm text-gray-700"><b class="text-blue-900"><i class="fa-solid fa-list-check text-green-500"></i> Du brauchst 3 Dinge:</b> den passenden Mischer + das <b>Rezept</b> + die <b>Materialien</b> (und etwas <b>Zed</b>).</div>
+                    <div class="bg-gray-50 rounded-xl p-4 border-2 border-gray-200 text-sm text-gray-700"><b class="text-blue-900"><i class="fa-solid fa-dice text-red-500"></i> Erfolgschance:</b> Grundrezepte haben <b>100%</b> Chance. Fortgeschrittene können fehlschlagen — dabei <b>verliert man die Materialien</b>.</div>
+                    <div class="bg-gray-50 rounded-xl p-4 border-2 border-gray-200 text-sm text-gray-700"><b class="text-blue-900"><i class="fa-solid fa-star text-amber-500"></i> Meisterschaft:</b> Jeder hergestellte Gegenstand steigert deine Meisterschaft (bis zu 300.000) und verbessert die <b>Bonuswerte</b>. Die <b>Master Artisan Soul</b> verdoppelt den Zuwachs.</div>
+                    <div class="bg-gray-50 rounded-xl p-4 border-2 border-gray-200 text-sm text-gray-700 md:col-span-2"><b class="text-blue-900"><i class="fa-solid fa-chalkboard-user text-purple-500"></i> Rezepte:</b> Einfache Rezepte (Novize/Stahl) sind bereits im Mischer enthalten. Höhere Rezepte <b>lernt man bei Lehrern</b> gegen Zed — die wichtigsten sind <b>T.R.Z.</b> (Francis) und <b>Roco</b> (Hellen).</div>
+                </div>
+
+                <!-- Erste Waffe -->
+                <h3 class="text-2xl font-bold text-blue-900 mb-4 flex items-center gap-2"><i class="fa-solid fa-khanda text-sky-600"></i> Deine 1. WAFFE — Schritt für Schritt</h3>
+                <div class="rounded-2xl border-2 border-sky-300 shadow-lg bg-white overflow-hidden mb-8">
+                    <div class="p-4 bg-gradient-to-r from-sky-600 to-sky-400 text-white">
+                        <p class="text-xl font-bold drop-shadow"><i class="fa-solid fa-khanda"></i> Novice Sword <span class="text-sm font-semibold">(Stufe 10 · 100% Erfolg · Waffen-Mischer)</span></p>
+                        <p class="text-sm text-sky-100">Rezept: <b class="bg-white/20 px-2 rounded">1 Iron (Eisen)</b> + <b class="bg-white/20 px-2 rounded">1 Broken Blade (Klingenbruch)</b></p>
+                    </div>
+                    <ol class="p-4 space-y-3 text-sm">
+                        <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-sky-500 text-white font-bold flex items-center justify-center">1</span><div><b>Eisen (Iron)</b> besorgen: Durch <b>Bergbau</b> (kaufe eine <b>Spitzhacke</b> von <b>Dozer</b> für 100 Zed, gehe in die Mine und halte <b>B</b>) oder von den <b>"Fran Ore"</b>-Erzadern bei Francis.</div></li>
+                        <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-sky-500 text-white font-bold flex items-center justify-center">2</span><div><b>Klingenbruch (Broken Blade)</b> besorgen: Im <b>Alchemie-Mischer</b> aus <b>5 Eisen + 5 Kupfer</b> herstellen (du erhältst <b>10 Stück auf einmal</b>). Kein Alchemie-Mischer? Bitte einen Freund darum oder handle mit ihm.</div></li>
+                        <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-sky-500 text-white font-bold flex items-center justify-center">3</span><div>In einer <b>Stadt</b> den <b>Waffen-Mischer</b> öffnen, <b>Novice Sword</b> auswählen und bestätigen. Fertig! 🎉</div></li>
+                    </ol>
+                    <div class="px-4 pb-4 text-xs text-gray-500">Frühe Varianten (gleiches Prinzip): <b>Novice Axe</b> (1 Iron + 1 Broken Blade) · <b>Steel Dagger</b> (3 Iron + 4 Old Dagger + 1 Artisan Soul) · <b>Red Long Bow</b> (3 Lumber + 4 Old Bow + 1 Artisan Soul) · <b>Eagle Staff</b> (3 Lumber + 4 Broken Staff + 1 Artisan Soul).</div>
+                </div>
+
+                <!-- Erste Rüstung -->
+                <h3 class="text-2xl font-bold text-blue-900 mb-4 flex items-center gap-2"><i class="fa-solid fa-shirt text-emerald-600"></i> Deine 1. RÜSTUNG — Schritt für Schritt</h3>
+                <div class="rounded-2xl border-2 border-emerald-300 shadow-lg bg-white overflow-hidden mb-4">
+                    <div class="p-4 bg-gradient-to-r from-emerald-600 to-teal-400 text-white">
+                        <p class="text-xl font-bold drop-shadow"><i class="fa-solid fa-shirt"></i> Grundausstattung <span class="text-sm font-semibold">(Stufe 8–10 · 100% · Rüstungs-Mischer)</span></p>
+                        <p class="text-sm text-emerald-50">Ein Teil pro Slot: <b>Shirt (Oberteil)</b>, <b>Pants (Hose)</b> und <b>Hat (Hut)</b> — plus ein <b>Shield (Schild)</b> für den Krieger.</p>
+                    </div>
+                    <div class="p-4 text-sm space-y-3">
+                        <p><b class="text-emerald-800">Das Grundmaterial hängt von deiner Klasse ab:</b></p>
+                        <div class="grid md:grid-cols-2 gap-3">
+                            <div class="bg-sky-50 border border-sky-200 rounded-lg p-3"><b>Swordsman / Thief</b> → nutzen <b class="text-amber-700">Rawhide (Rohleder)</b></div>
+                            <div class="bg-purple-50 border border-purple-200 rounded-lg p-3"><b>Scout / Mage</b> → nutzen <b class="text-indigo-700">Silk Fabric (Seidenstoff)</b></div>
+                        </div>
+                        <p class="pt-1"><b class="text-emerald-800">Beispiel (Krieger-Oberteil, lv10):</b> <b class="bg-emerald-100 px-2 rounded">1 Rawhide</b> + <b class="bg-emerald-100 px-2 rounded">1 Torn Shirt</b> → Oberteil.</p>
+                        <ol class="space-y-3">
+                            <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-emerald-500 text-white font-bold flex items-center justify-center">1</span><div>Sammle das <b>Leder bzw. den Stoff</b> (Rawhide oder Silk Fabric) durch das Jagen früher Monster (Tabelle unten).</div></li>
+                            <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-emerald-500 text-white font-bold flex items-center justify-center">2</span><div>Stelle die <b>"Torn"</b>-Bauteile im <b>Alchemie-Mischer</b> her: <b>Torn Shirt / Torn Pants</b> = 5 Rawhide + 5 Thread · <b>Torn Hat</b> = 5 Silk Fabric + 5 Thread (jeweils 10 Stück).</div></li>
+                            <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-emerald-500 text-white font-bold flex items-center justify-center">3</span><div>Im <b>Rüstungs-Mischer</b> in der Stadt <b>Shirt</b>, <b>Pants</b> und <b>Hat</b> für deine Klasse zusammensetzen.</div></li>
+                            <li class="flex gap-3"><span class="shrink-0 w-7 h-7 rounded-full bg-emerald-500 text-white font-bold flex items-center justify-center"><i class="fa-solid fa-shield-halved"></i></span><div>Krieger: Baue zusätzlich den <b>Swordsman's Shield</b> = <b>2 Iron + 2 Lumber</b>.</div></li>
+                        </ol>
+                    </div>
+                </div>
+
+                <!-- Fundorte der Materialien -->
+                <h3 class="text-2xl font-bold text-blue-900 mb-4 mt-8 flex items-center gap-2"><i class="fa-solid fa-map-location-dot text-red-500"></i> Fundorte der Materialien</h3>
+                <div class="overflow-x-auto mb-4">
+                    <table class="w-full text-sm border-collapse">
+                        <thead>
+                            <tr class="bg-blue-900 text-white">
+                                <th class="text-left p-2 rounded-tl-lg">Material</th>
+                                <th class="text-left p-2 rounded-tr-lg">Wie man es bekommt</th>
+                            </tr>
+                        </thead>
+                        <tbody class="[&>tr:nth-child(even)]:bg-blue-50">
+                            <tr><td class="p-2 font-bold">Iron (Eisen)</td><td class="p-2"><i class="fa-solid fa-gem text-gray-500"></i> Bergbau (halte <b>B</b> + Spitzhacke) und die <b>"Fran Ore"</b>-Knoten bei Francis.</td></tr>
+                            <tr><td class="p-2 font-bold">Copper (Kupfer)</td><td class="p-2"><i class="fa-solid fa-gem text-orange-400"></i> <b>"Fran Ore"</b>-Knoten (Francis) und Monster-Drops.</td></tr>
+                            <tr><td class="p-2 font-bold">Lumber (Holz)</td><td class="p-2"><i class="fa-solid fa-tree text-green-600"></i> Holzkisten und <b>Lumberman</b>-Monster (Everwood); auch Dugong/Puma King.</td></tr>
+                            <tr><td class="p-2 font-bold">Rawhide (Rohleder)</td><td class="p-2"><i class="fa-solid fa-paw text-amber-700"></i> Frühe Monster: <b>Debiel, Darkel, King Frog, Dugong</b>…</td></tr>
+                            <tr><td class="p-2 font-bold">Silk Fabric (Seidenstoff)</td><td class="p-2"><i class="fa-solid fa-paw text-indigo-500"></i> Frühe Monster: <b>Carrot Rabbit, Chups, Debiel, Mad Woman</b>…</td></tr>
+                            <tr><td class="p-2 font-bold">Thread (Faden)</td><td class="p-2"><i class="fa-solid fa-paw text-pink-500"></i> <b>Blue Housel, Hammer Rabbit, Pink Wing, Mad Woman</b>…</td></tr>
+                            <tr><td class="p-2 font-bold">Pickaxe (Spitzhacke)</td><td class="p-2"><i class="fa-solid fa-coins text-yellow-500"></i> Kaufe sie bei <b>Dozer</b> (100 Zed).</td></tr>
+                            <tr><td class="p-2 font-bold">Artisan Soul</td><td class="p-2"><i class="fa-solid fa-ghost text-purple-500"></i> Drop (~1%) von Monstern ab Stufe 33 — wird für Rezepte ab Stufe 18 benötigt.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-xs text-gray-500 mb-2"><i class="fa-solid fa-circle-info"></i> Rezepte, Drops und Händler, von der Community katalogisiert. Item-Namen sind auf Englisch angegeben, wie sie im Spiel erscheinen.</p>
+
+                <!-- Tipps -->
+                <div class="bg-green-50 border-2 border-green-300 rounded-xl p-4 mt-6">
+                    <p class="font-bold text-green-900 mb-2"><i class="fa-solid fa-circle-check text-green-600"></i> Goldene Tipps</p>
+                    <ul class="text-sm text-gray-800 space-y-1 list-disc pl-5">
+                        <li>Möchtest du <b>autark sein</b>? Wähle den <b>Alchemie-Mischer</b> — er fertigt die Schlüsselbauteile für <b>jedes</b> Waffen- und Rüstungsrezept.</li>
+                        <li>Grundlegende Rezepte haben <b>100%</b> Erfolgschance (kein Risiko). Bei fortgeschrittenen Rezepten empfiehlt sich eine <b>Master Artisan Soul</b> für doppelte Meisterschaft und bessere Stats.</li>
+                        <li>Stelle Gegenstände immer <b>in einer Stadt</b> her und vergewissere dich, dass der <b>richtige Mischer</b> angelegt ist.</li>
+                        <li>Schließe dich mit Freunden zusammen: Einer wird Alchemist (baut Teile), der andere Schmied/Schneider (montiert Ausrüstung). Das spart viel Zeit!</li>
+                    </ul>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Fußzeile -->
+    <footer class="container mx-auto px-4 mt-12">
+        <div class="panel-wk p-6 text-center">
+            <img src="logo.png" alt="" class="mx-auto h-16 object-contain mb-3 opacity-90">
+            <p class="font-bold text-blue-900">Wonder Classic — Community-Portal &amp; Enzyklopädie</p>
+            <p class="text-sm text-gray-600 mt-1">Gemeinnütziges Fan-Projekt für klassische 2D-MMORPGs.</p>
+            <div class="flex justify-center gap-4 mt-4 text-2xl text-blue-600">
+                <a href="https://discord.gg/dSzYmkKVE" target="_blank" class="hover:text-blue-800 transition" title="Discord"><i class="fa-brands fa-discord"></i></a>
+                <a href="#" class="hover:text-blue-800 transition" title="YouTube"><i class="fa-brands fa-youtube"></i></a>
+                <a href="#" class="hover:text-blue-800 transition" title="GitHub"><i class="fa-brands fa-github"></i></a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>
